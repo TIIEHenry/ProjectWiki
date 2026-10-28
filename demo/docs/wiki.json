@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "project_name": "NoteBox",
+  "roots": [
+    {
+      "path": "docs",
+      "role": "knowledge"
+    },
+    {
+      "path": "dev",
+      "role": "process"
+    },
+    {
+      "path": "archive",
+      "role": "archive"
+    }
+  ],
+  "modules": [
+    {
+      "name": "notes",
+      "path": "notes",
+      "entry": "notes/README.md",
+      "docs": "notes/docs"
+    }
+  ],
+  "entrypoints": [
+    "README.md",
+    "AGENTS.md",
+    "docs/INDEX.md",
+    "dev/INDEX.md"
+  ],
+  "pages": [
+    {
+      "path": "AGENTS.md",
+      "role": "entry",
+      "max_chars": 8000
+    },
+    {
+      "path": "docs/INDEX.md",
+      "role": "entry",
+      "max_chars": 5000
+    },
+    {
+      "path": "notes/README.md",
+      "role": "entry",
+      "max_chars": 5000
+    }
+  ],
+  "exclude": [
+    ".git/**",
+    "**/__pycache__/**"
+  ],
+  "generated_index": "docs/wiki-index.json",
+  "remind": {
+    "watch": [
+      {
+        "name": "notes",
+        "code": [
+          "notes/src/*"
+        ],
+        "docs": [
+          "notes/docs/*",
+          "notes/README.md"
+        ]
+      }
+    ],
+    "threshold": {
+      "commits": 10,
+      "lines": 300
+    },
+    "block_at": {
+      "commits": 30
+    },
+    "ask_user": [
+      "docs/requirements.md",
+      "docs/principles/*",
+      "notes/docs/requirements.md",
+      "notes/docs/decisions/*"
+    ]
+  }
+}

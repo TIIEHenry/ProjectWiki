@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "project_name": "【待填：项目名称】",
+  "roots": [
+    {
+      "path": "docs",
+      "role": "knowledge"
+    },
+    {
+      "path": "dev",
+      "role": "process"
+    },
+    {
+      "path": "archive",
+      "role": "archive"
+    }
+  ],
+  "modules": [],
+  "entrypoints": [
+    "README.md",
+    "AGENTS.md",
+    "docs/INDEX.md",
+    "dev/INDEX.md"
+  ],
+  "pages": [
+    {
+      "path": "AGENTS.md",
+      "role": "entry",
+      "max_chars": 8000
+    }
+  ],
+  "exclude": [
+    ".git/**",
+    "**/__pycache__/**"
+  ]
+}

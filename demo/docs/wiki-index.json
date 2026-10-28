@@ -1,0 +1,120 @@
+{
+  "pages": [
+    {
+      "path": "AGENTS.md",
+      "role": "entry",
+      "scope": "project",
+      "title": "NoteBox 开发约束"
+    },
+    {
+      "path": "README.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "NoteBox 示例项目"
+    },
+    {
+      "path": "archive/dev/plans/initial-title-validation.md",
+      "role": "archive",
+      "scope": "project",
+      "title": "首次标题校验计划（历史示例）"
+    },
+    {
+      "path": "dev/INDEX.md",
+      "role": "process",
+      "scope": "project",
+      "title": "开发入口"
+    },
+    {
+      "path": "dev/inbox/README.md",
+      "role": "process",
+      "scope": "project",
+      "title": "待办收件箱"
+    },
+    {
+      "path": "dev/inbox/bug/combining-character-count.md",
+      "role": "process",
+      "scope": "project",
+      "title": "组合字符标题计数疑问"
+    },
+    {
+      "path": "dev/inbox/request/preview-title.md",
+      "role": "process",
+      "scope": "project",
+      "title": "提供标题预览函数的建议"
+    },
+    {
+      "path": "dev/plans/multiline-title.md",
+      "role": "process",
+      "scope": "project",
+      "title": "候选计划：评估单行标题"
+    },
+    {
+      "path": "dev/roadmap.md",
+      "role": "process",
+      "scope": "project",
+      "title": "路线图"
+    },
+    {
+      "path": "docs/INDEX.md",
+      "role": "entry",
+      "scope": "project",
+      "title": "当前知识"
+    },
+    {
+      "path": "docs/design.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "项目设计"
+    },
+    {
+      "path": "docs/guides/maintenance.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "标题校验失败的处理"
+    },
+    {
+      "path": "docs/principles/product.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "产品与设计原则"
+    },
+    {
+      "path": "docs/requirements.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "项目需求"
+    },
+    {
+      "path": "docs/standards/development.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "开发规范"
+    },
+    {
+      "path": "notes/README.md",
+      "role": "entry",
+      "scope": "notes",
+      "title": "标题模块"
+    },
+    {
+      "path": "notes/docs/decisions/unicode-length.md",
+      "role": "knowledge",
+      "scope": "notes",
+      "title": "决策：标题按 Unicode 码点计数"
+    },
+    {
+      "path": "notes/docs/design.md",
+      "role": "knowledge",
+      "scope": "notes",
+      "title": "标题校验设计"
+    },
+    {
+      "path": "notes/docs/requirements.md",
+      "role": "knowledge",
+      "scope": "notes",
+      "title": "标题校验需求"
+    }
+  ],
+  "project_name": "NoteBox",
+  "version": 1
+}

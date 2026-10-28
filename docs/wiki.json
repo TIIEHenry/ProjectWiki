@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "project_name": "ProjectWiki",
+  "roots": [
+    {"path": "docs", "role": "knowledge"},
+    {"path": "dev", "role": "process"},
+    {"path": "archive", "role": "archive"}
+  ],
+  "modules": [
+    {"name": "wiki", "path": "scripts/wiki", "entry": "scripts/wiki/README.md"}
+  ],
+  "entrypoints": ["README.md", "AGENTS.md", "CLAUDE.md", "docs/INDEX.md", "dev/INDEX.md"],
+  "pages": [
+    {"path": "AGENTS.md", "role": "entry", "max_chars": 6000},
+    {"path": "docs/INDEX.md", "role": "entry", "max_chars": 4000},
+    {"path": "dev/INDEX.md", "role": "entry", "max_chars": 3000}
+  ],
+  "exclude": ["tmp/**", "templates/**", "demo/**", ".git/**", "**/__pycache__/**"],
+  "remind": {
+    "watch": [
+      {"name": "wiki", "code": ["scripts/wiki/*", "tests/*"], "docs": ["scripts/wiki/README.md", "docs/design/automation.md"]},
+      {"name": "templates", "code": ["templates/*"], "docs": ["templates/README.md", "docs/guides/adoption.md"]}
+    ],
+    "threshold": {"commits": 10, "lines": 300},
+    "block_at": {"commits": 30},
+    "ask_user": ["docs/requirements/*", "docs/principles/*", "docs/decisions/*", "*/docs/decisions/*"]
+  }
+}

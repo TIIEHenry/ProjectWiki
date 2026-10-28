@@ -1,0 +1,11 @@
+{
+  "description": "本轮实际被测代码与配置；不含稍后写入的验证记录。",
+  "sha256": {
+    "scripts/wiki/wiki.py": "c9b1386f20f7c967f1acfee8dbecd1e5471170fcf2b696d102fb6ef430c0262b",
+    "tests/test_wiki.py": "be07877d80d931c9a5b057feacb0c931bb1b6626a367adb83b314476c247d9ce",
+    "docs/wiki.json": "4b6462717b7f80ba2e1c7908651492eac2239f3a97aeb7ba8bb14da596878477",
+    "demo/docs/wiki.json": "882463088d9ad36df6f9eb7bc3a19b5a5fad8db099d118566dd07f251573edb4",
+    "demo/notes/src/title.py": "33b339c4cbd89d1c033997315232a4b94b070911fe9f8e2926b4d74c9272083f",
+    "demo/notes/tests/test_title.py": "e7fddaacbee62154d23852557a536cb7ee029bdb49c59cd23d7df8c1b0ee1c99"
+  }
+}
