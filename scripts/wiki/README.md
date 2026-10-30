@@ -64,6 +64,8 @@ python3 scripts/wiki/wiki.py remind --staged --message-file "$1" --root .
 
 钩子默认把仓库顶层作为项目根。项目根是子目录时设置 `WIKI_ROOT`；Python 不叫 `python3` 时设置 `PYTHON`。`doctor` 会检查当前生效的钩子目录里这两个钩子是否存在、可执行并调用了对应命令。它检查不了其他钩子管理器，也无法阻止 `git commit --no-verify`，所以 Agent 规则里要写明不要跳过钩子。
 
+配置里还没有 `remind` 时，commit-msg 输出警告 `remind-not-configured`，提交成功。写好配置后的阈值和退出码见[提交时的文档提醒](reference.md#提交时的文档提醒)。
+
 ## 退出码
 
 - `0`：所执行的检查通过，可能带警告。

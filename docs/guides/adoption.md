@@ -87,7 +87,7 @@ python3 scripts/wiki/wiki.py check-new docs/design/new-topic.md --root .
 python3 scripts/wiki/wiki.py check --root . --staged
 ```
 
-项目没有其他钩子时，复制 `scripts/wiki/hooks/` 并在每个 clone 执行一次 `git config core.hooksPath scripts/wiki/hooks`。已有钩子工具时，把 `check --staged` 加进现有 pre-commit、`remind --staged --message-file "$1"` 加进现有 commit-msg，不要覆盖原有配置。仓库里存在脚本不代表当前工作副本已经启用，运行 `doctor` 查看 `git_hooks` 的结果。
+项目没有其他钩子时，复制 `scripts/wiki/hooks/` 并在每个 clone 执行一次 `git config core.hooksPath scripts/wiki/hooks`。已有钩子工具时，把 `check --staged` 加进现有 pre-commit、`remind --staged --message-file "$1"` 加进现有 commit-msg，不要覆盖原有配置。仓库里存在脚本不代表当前工作副本已经启用，运行 `doctor` 查看 `git_hooks` 的结果。配置里还没有 `remind` 时，commit-msg 输出警告 `remind-not-configured`，这次提交成功；阈值和拦截要等第 8 步写好 `remind` 才生效，见[提交时的文档提醒](../../scripts/wiki/reference.md#提交时的文档提醒)。
 
 退出码 `0` 表示本次检查没有错误，可能仍有警告；`1` 表示发现错误；`2` 表示输入或执行条件不完整。钩子须将 `1` 和 `2` 都视为失败。没有 Git 仓库时只能运行工作区检查，不能据此报告提交门禁已通过。
 

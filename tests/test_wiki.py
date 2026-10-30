@@ -381,6 +381,57 @@ class WikiTests(ProjectFixture):
         self.save_config()
         self.assertEqual(self.run_cli("check")[0], 2)
 
+    def test_unknown_config_fields_are_incomplete(self):
+        """PW-09.8"""
+        self.config["dir_budgets"] = {"dev/plans": 1}
+        self.save_config()
+        self.assertEqual(self.run_cli("check")[0], 0)
+        del self.config["dir_budgets"]
+        self.config["dir_budget"] = {"dev/plans": 1}
+        self.save_config()
+        code, report = self.run_cli("check")
+        self.assertEqual((code, report["result"]), (2, "incomplete"), report)
+        self.assertIn("unknown fields: dir_budget", report["findings"][0]["message"])
+
+        del self.config["dir_budget"]
+        self.config["remind"] = {
+            "watch": [{"name": "notes", "code": ["notes/src/*"], "docs": ["notes/docs/*"]}],
+            "threshold": {"commits": 1},
+            "plan_stale_days": 7,
+        }
+        self.save_config()
+        self.assertEqual(self.run_cli("check")[0], 0)
+        del self.config["remind"]["plan_stale_days"]
+        self.config["remind"]["plan_stale_day"] = 7
+        self.save_config()
+        code, report = self.run_cli("check")
+        self.assertEqual((code, report["result"]), (2, "incomplete"), report)
+        self.assertIn("unknown fields: plan_stale_day", report["findings"][0]["message"])
+
+        del self.config["remind"]["plan_stale_day"]
+        self.config["remind"]["plan_stale_days"] = 7
+        self.config["remind"]["watch"][0]["doc"] = ["notes/docs/extra.md"]
+        self.save_config()
+        code, report = self.run_cli("check")
+        self.assertEqual((code, report["result"]), (2, "incomplete"), report)
+        self.assertIn("remind.watch[notes] has unknown fields: doc", report["findings"][0]["message"])
+
+    def test_remind_without_git_is_incomplete(self):
+        """PW-11.7"""
+        self.config["remind"] = {
+            "watch": [{"name": "notes", "code": ["notes/src/*"], "docs": ["notes/docs/*"]}],
+            "threshold": {"commits": 1},
+        }
+        self.save_config()
+        env = {**os.environ, "GIT_CEILING_DIRECTORIES": str(self.root)}
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "remind", "--root", str(self.root), "--json"],
+            capture_output=True, text=True, env=env,
+        )
+        report = json.loads(result.stdout)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(report["result"], "incomplete")
+
     def test_doctor_warns_when_archive_root_is_not_ignored(self):
         """PW-08.2"""
         code, report = self.run_cli("doctor")
@@ -644,11 +695,29 @@ class RemindTests(ProjectFixture):
         self.assertIn("notes/docs/design.md", sync[0]["message"])
         self.assertIn("docs/requirements.md", [x["path"] for x in report["findings"] if x["rule"] == "ask-user"])
 
-    def test_remind_without_configuration_or_git_is_incomplete(self):
+    def test_missing_remind_warns_and_commit_hook_allows_the_commit(self):
         """PW-11.7"""
         del self.config["remind"]
         self.save_config()
-        self.assertEqual(self.run_cli("remind")[0], 2)
+        code, report = self.run_cli("remind")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(report["errors"], 0)
+        self.assertIn("remind-not-configured", self.rules(report))
+        self.git("add", "docs/wiki.json")
+        code, report = self.run_cli("remind", "--staged")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(report["errors"], 0)
+        self.assertIn("remind-not-configured", self.rules(report))
+        self.install_hooks()
+        self.write("docs/note.md", "# Note\n\nA page.\n")
+        self.git("add", "docs/note.md")
+        result = self.commit("Add a note", verify=True)
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("remind-not-configured", output)
+
+    def test_invalid_remind_config_is_incomplete(self):
+        """PW-09.4"""
         self.config["remind"] = {"watch": [{"name": "bad name", "code": ["x"], "docs": ["y"]}], "threshold": {"commits": 1}}
         self.save_config()
         self.assertEqual(self.run_cli("check")[0], 2)
@@ -1281,6 +1350,28 @@ class AutomationTests(ProjectFixture):
             result = subprocess.run([sys.executable, str(target / "scripts/wiki/wiki.py"), command, "--root", str(target)],
                                     capture_output=True, text=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
             self.assertEqual(result.returncode, 0, command + ": " + result.stdout + result.stderr)
+
+    def test_template_commit_succeeds_before_remind_is_configured(self):
+        """PW-11.7"""
+        if not shutil.which("git"):
+            self.skipTest("git required")
+        target = self.root / "copied"
+        shutil.copytree(SCRIPT.parents[2] / "templates" / "project", target)
+        shutil.copytree(SCRIPT.parent, target / "scripts" / "wiki", ignore=shutil.ignore_patterns("__pycache__"))
+        env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@x.invalid",
+               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@x.invalid"}
+        subprocess.run(["git", "-C", str(target), "init", "-q"], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(target), "config", "core.hooksPath", "scripts/wiki/hooks"], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(target), "add", "-A"], check=True, capture_output=True)
+        result = subprocess.run(
+            ["git", "-C", str(target), "-c", "commit.gpgsign=false", "commit", "-m", "Initial project"],
+            capture_output=True, text=True, env=env,
+        )
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("remind-not-configured", output)
+        self.assertTrue(subprocess.run(["git", "-C", str(target), "rev-parse", "--verify", "-q", "HEAD"],
+                                       capture_output=True).returncode == 0)
 
     def test_archive_apply_refuses_and_writes_nothing(self):
         """PW-20.2"""

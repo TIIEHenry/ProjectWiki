@@ -39,6 +39,15 @@ DEFAULT_DECISION_PATTERNS = ["docs/decisions/*", "*/docs/decisions/*"]
 REVIEW_TRAILER = "Docs-Reviewed"
 HISTORY_SCAN_LIMIT = 2000
 HOOK_MARKERS = {"pre-commit": "check --staged", "commit-msg": "remind --staged"}
+CONFIG_FIELDS = frozenset({
+    "version", "project_name", "roots", "archive_root", "modules", "entrypoints", "pages",
+    "exclude", "orphan_ignore", "status_values", "requirements", "verification", "reconcile",
+    "reviews", "dir_budgets", "baseline", "generated_index", "archive_index", "verify", "remind",
+})
+REMIND_FIELDS = frozenset({
+    "watch", "threshold", "block_at", "ask_user", "decisions", "plans", "inbox", "plan_stale_days",
+})
+WATCH_FIELDS = frozenset({"name", "code", "docs"})
 
 
 class WikiError(Exception):
@@ -425,6 +434,9 @@ class Wiki:
             raise WikiError(f"Invalid JSON in {config_path}: {exc}") from exc
         if not isinstance(self.config, dict) or type(self.config.get("version")) is not int or self.config["version"] != 1:
             raise WikiError("Configuration must be an object with version: 1")
+        unknown = sorted(set(self.config) - CONFIG_FIELDS)
+        if unknown:
+            raise WikiError("configuration has unknown fields: " + ", ".join(unknown))
         self.roots = self._records("roots", required=True)
         self.modules = self._records("modules")
         self.pages = self._records("pages")
@@ -639,6 +651,9 @@ class Wiki:
             return None
         if not isinstance(raw, dict):
             raise WikiError("remind must be an object")
+        unknown = sorted(set(raw) - REMIND_FIELDS)
+        if unknown:
+            raise WikiError("remind has unknown fields: " + ", ".join(unknown))
         watches = raw.get("watch")
         if not isinstance(watches, list) or not watches or not all(isinstance(w, dict) for w in watches):
             raise WikiError("remind.watch must be a non-empty array of objects")
@@ -650,6 +665,9 @@ class Wiki:
             if name in names:
                 raise WikiError(f"remind.watch name registered twice: {name}")
             names.add(name)
+            unknown = sorted(set(watch) - WATCH_FIELDS)
+            if unknown:
+                raise WikiError(f"remind.watch[{name}] has unknown fields: " + ", ".join(unknown))
             watch["code"] = self._patterns(watch.get("code"), f"remind.watch[{name}].code", required=True)
             watch["docs"] = self._patterns(watch.get("docs"), f"remind.watch[{name}].docs", required=True)
 
@@ -2214,7 +2232,9 @@ def over(value: dict, limit: dict) -> bool:
 
 def remind_report(wiki: Wiki, message_file: str | None = None) -> dict:
     if wiki.remind is None:
-        raise WikiError("remind requires a remind section in configuration")
+        return report(wiki, [Finding(
+            "remind-not-configured", "warning", wiki.config_path,
+            "No remind section; commit-time documentation reminders are disabled")], "remind")
     snap = wiki.snapshot
     config = wiki.remind
     findings: list[Finding] = []

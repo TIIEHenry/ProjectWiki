@@ -61,7 +61,7 @@
 | `verify` | 可选，验证命令和要记录哈希的文件 | [验证记录](#验证记录) |
 | `remind` | 可选，提交时的文档提醒 | [提交时的文档提醒](#提交时的文档提醒) |
 
-配置按完整 JSON 解析，字段写错时报告 incomplete，不会静默改用默认值。
+配置按完整 JSON 解析。顶层，以及 `verification`、`requirements`、`verify`（含每条命令）、`reconcile`、`remind`（含 `watch` 条目、`threshold` 和 `block_at`）里写错的字段，报告 incomplete，不改用默认值。
 
 - `roots` 登记知识、过程和历史目录。历史目录可以在第一次归档时创建，其余登记目录和必需入口必须存在。
 - `modules` 登记模块路径和入口；小模块可以只有 README，省略 `docs` 字段。已有模块文档目录时再登记 `docs`。工具会发现未登记且未明确排除的 `docs/` 目录，独立前端或其他语言模块也需要登记。
@@ -301,7 +301,7 @@ python3 scripts/wiki/wiki.py archive dev/plans/finished-work.md --root . --apply
 
 `index` 输出包含当前和历史页的全量机器目录，每条记录标注 `role`。生成当前知识导航或默认检索集合时，调用方应过滤历史角色。`check-new`、`archive`、`index`、`doctor`、`verify` 使用工作区；`check --staged` 和 `remind --staged` 使用暂存快照，输出会明确标识这一区别。`remind --staged` 的行数从捕获的索引和 HEAD 内容计算，可能与实时 `git diff --numstat` 在二进制文件或特殊换行上略有差异。
 
-`doctor` 检查配置、明确的根历史忽略规则，以及当前 Git 钩子目录中的 ProjectWiki 钩子；其他钩子管理器和构建任务报告为 `unknown`，并给出 `hook-coverage` 说明。`.ignore` 没有排除已登记的历史根时报告 `archive-default-search`，钩子缺失或没有调用对应命令时报告 `hook-not-installed`，配置里没有 `remind` 时报告 `remind-not-configured`。普通 `rg` 可以遵守 `.ignore`；任意 `grep`、`git grep` 或显式文件读取不受这项规则保证。这里的忽略是默认降噪，不是访问限制。
+`doctor` 检查配置、明确的根历史忽略规则，以及当前 Git 钩子目录中的 ProjectWiki 钩子；其他钩子管理器和构建任务报告为 `unknown`，并给出 `hook-coverage` 说明。`.ignore` 没有排除已登记的历史根时报告 `archive-default-search`，钩子缺失或没有调用对应命令时报告 `hook-not-installed`，配置里没有 `remind` 时报告 `remind-not-configured`。`remind` 命令在同样情况下给出这条警告，退出码为 0。普通 `rg` 可以遵守 `.ignore`；任意 `grep`、`git grep` 或显式文件读取不受这项规则保证。这里的忽略是默认降噪，不是访问限制。
 
 ## 提交时的文档提醒
 
@@ -334,8 +334,10 @@ python3 scripts/wiki/wiki.py archive dev/plans/finished-work.md --root . --apply
 
 | 命令 | 用途 | 退出码 |
 |---|---|---|
-| `remind` | 会话开始时汇总各组累计量 | 只提醒，始终为 0；没有 Git 或配置时为 2 |
+| `remind` | 会话开始时汇总各组累计量 | 只提醒，退出码为 0；没有 Git 时为 2 |
 | `remind --staged --message-file <文件>` | 提交时检查暂存的改动和待提交的信息 | 超过 `block_at` 且本次继续改代码未复核时为 1，否则为 0 |
+
+配置里没有 `remind` 时，两条命令都报告警告 `remind-not-configured`，退出码为 0。commit-msg 钩子同样以退出码 0 结束，提交完成。没有 Git 时 `remind` 报告 incomplete，退出码为 2；`remind --staged` 读不到索引时同样为 2。
 
 暂存模式在启动时捕获索引和 HEAD 的对象清单，本次改动的文件和行数都从这份清单计算：两边对象 ID 相同的路径不读取内容；符号链接、子模块和二进制文件计为改动的路径，但不计行数。行数用 Python 的 `difflib` 计算，只用于阈值提醒，可能与 `git diff --numstat` 略有差别。
 
@@ -347,8 +349,9 @@ python3 scripts/wiki/wiki.py archive dev/plans/finished-work.md --root . --apply
 - `ask-user`：本次改了 `ask_user` 中的文件。
 - `review-trailer-incomplete`：提交信息里的 `Docs-Reviewed` 没有写理由，不清零计数。
 - `human-claim-added`：本次暂存的 Markdown 文件新增了写着 `human:<名字>` 的行，例如核对行、核对表、负责人或签收。Agent 不得把自己写成 `human:`，工具又分不出是谁写的，所以这条是 `[user]` 提醒：确认名字对应的人确实做了这件事，否则改成 `agent:`。代码块和行内代码里的格式示例不算。
+- `remind-not-configured`：配置里没有 `remind`。提醒未启用，命令退出码为 0，提交继续完成。
 
-每条提醒以 `[agent]` 或 `[user]` 开头：前者由 Agent 自己处理，后者需要告诉用户。工具不判断文档内容是否与代码一致。
+需要处理的提醒以 `[agent]` 或 `[user]` 开头：前者由 Agent 自己处理，后者需要告诉用户。`remind-not-configured` 只说明提醒未启用。工具不判断文档内容是否与代码一致。
 
 ### 计划和待处理项的生命周期提醒
 

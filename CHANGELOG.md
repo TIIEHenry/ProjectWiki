@@ -46,10 +46,12 @@
 - `remind --staged` 新增 `[user]` 提醒 `human-claim-added`：暂存的 Markdown 新增了写着 `human:<名字>` 的行时，请提交者向用户确认。
 - `remind` 新增待处理项提醒 `inbox-stale`、`inbox-finished-not-archived`、`inbox-no-status`，路径默认 `dev/inbox/*/*.md`，可用 `remind.inbox` 修改，天数沿用 `plan_stale_days`。
 - `check` 新增 `trace-check-not-manual` 警告：验收核对记录只代替标了人工验证的条目，写在其他条目下不再消除 `trace-no-test`。
+- 配置里没有 `remind` 时，`remind` 和 commit-msg 钩子只给出 `remind-not-configured` 警告，退出码为 0。可以先装钩子，再写提醒配置。
+- 配置顶层、`remind` 和 `remind.watch` 的未知字段报告 incomplete。例如把 `dir_budgets` 写成 `dir_budget`、把 `plan_stale_days` 写成 `plan_stale_day`，或在 watch 条目里多写 `doc`。
 - 关键词集中在 `wiki.py` 的 `KEYWORDS` 表里，解析正则由它生成，测试核对它和 `formats.md` 一致。审查判定不再识别 `hold`、`weaken`、`drop`，改用 `confirmed`、`narrowed`、`rejected`。
 
 ### 参考项目
 
 - NoteBox 登记了 `verify` 和一份 `reconcile`（模块需求里的错误信息与 `title.py` 对账），新增带表格的 `archive/INDEX.md`，审查目录写了负责人。
 
-升级注意：配置新增的字段都是可选的，旧配置不改也能运行。升级后第一次运行 `check` 可能多出 `orphan-page`、`orphan-asset` 警告，它们不会让检查失败；确实不需要入口的路径登记在 `orphan_ignore` 里。复制新版 `scripts/wiki/` 时，`reference.md` 和 `formats.md` 要一起复制；链接到旧 `scripts/wiki/README.md#…` 小节的文档改链到 `reference.md`。审查问题用了 `hold`、`weaken`、`drop` 判定的，改成对应的 `confirmed`、`narrowed`、`rejected`。用验收核对记录代替测试的非人工验收条目，会重新出现 `trace-no-test`：补测试，或者确认命令证明不了后加人工验证标记。
+升级注意：配置新增的字段都是可选的，旧配置不改也能运行。升级后第一次运行 `check` 可能多出 `orphan-page`、`orphan-asset` 警告，它们不会让检查失败；确实不需要入口的路径登记在 `orphan_ignore` 里。复制新版 `scripts/wiki/` 时，`reference.md` 和 `formats.md` 要一起复制；链接到旧 `scripts/wiki/README.md#…` 小节的文档改链到 `reference.md`。审查问题用了 `hold`、`weaken`、`drop` 判定的，改成对应的 `confirmed`、`narrowed`、`rejected`。用验收核对记录代替测试的非人工验收条目，会重新出现 `trace-no-test`：补测试，或者确认命令证明不了后加人工验证标记。顶层、`remind` 或 `remind.watch` 里有工具不认识的字段时，`check` 报告 incomplete。没有 `remind` 的仓库装上钩子后可以提交，commit-msg 只警告 `remind-not-configured`。
