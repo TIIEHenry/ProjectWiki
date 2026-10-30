@@ -32,5 +32,36 @@
   "exclude": [
     ".git/**",
     "**/__pycache__/**"
-  ]
+  ],
+  "dir_budgets": {
+    "dev/plans": 30,
+    "dev/inbox/*": 30,
+    "dev/reviews/*": 20
+  },
+  "requirements": {
+    "files": [
+      "docs/overview.md",
+      "docs/requirements/*.md"
+    ],
+    "tests": [
+      "tests/*",
+      "*/tests/*"
+    ]
+  },
+  "verify": {
+    "commands": [
+      {
+        "name": "check",
+        "run": [
+          "python3",
+          "scripts/wiki/wiki.py",
+          "check",
+          "--root",
+          "."
+        ],
+        "summary_lines": 1,
+        "summary_from": "start"
+      }
+    ]
+  }
 }

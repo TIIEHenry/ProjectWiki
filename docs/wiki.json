@@ -2,27 +2,51 @@
   "version": 1,
   "project_name": "ProjectWiki",
   "roots": [
-    {"path": "docs", "role": "knowledge"},
-    {"path": "dev", "role": "process"},
-    {"path": "archive", "role": "archive"}
+    {"path": "docs", "role": "knowledge"}
   ],
   "modules": [
     {"name": "wiki", "path": "scripts/wiki", "entry": "scripts/wiki/README.md"}
   ],
-  "entrypoints": ["README.md", "AGENTS.md", "CLAUDE.md", "docs/INDEX.md", "dev/INDEX.md"],
+  "entrypoints": ["README.md", "AGENTS.md", "CLAUDE.md", "TODO.md", "CHANGELOG.md", "docs/INDEX.md"],
   "pages": [
     {"path": "AGENTS.md", "role": "entry", "max_chars": 6000},
     {"path": "docs/INDEX.md", "role": "entry", "max_chars": 4000},
-    {"path": "dev/INDEX.md", "role": "entry", "max_chars": 3000}
+    {"path": "scripts/wiki/README.md", "role": "entry", "max_chars": 6000},
+    {"path": "scripts/wiki/reference.md", "role": "reference"},
+    {"path": "scripts/wiki/formats.md", "role": "reference"}
   ],
   "exclude": ["tmp/**", "templates/**", "demo/**", ".git/**", "**/__pycache__/**"],
+  "status_values": {"采用": "current"},
+  "requirements": {"files": ["docs/requirements/*.md"], "tests": ["tests/*"]},
+  "reconcile": [
+    {
+      "name": "rules",
+      "docs": ["scripts/wiki/README.md", "scripts/wiki/reference.md"],
+      "doc_pattern": "`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`",
+      "code": ["scripts/wiki/wiki.py"],
+      "code_pattern": "Finding\\(\\s*\"([a-z][a-z0-9]*(?:-[a-z0-9]+)+)\"",
+      "ignore": ["agent-checked", "human-checked", "check-new", "export-okf", "working-tree"]
+    }
+  ],
+  "verify": {
+    "commands": [
+      {"name": "tests", "run": ["python3", "-m", "unittest", "discover", "-s", "tests"], "env": {"PYTHONDONTWRITEBYTECODE": "1"}},
+      {"name": "demo-tests", "run": ["python3", "-m", "unittest", "discover", "-s", "notes/tests"], "cwd": "demo", "env": {"PYTHONDONTWRITEBYTECODE": "1"}},
+      {"name": "check", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "."], "summary_lines": 1, "summary_from": "start"},
+      {"name": "check-demo", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "demo"], "summary_lines": 1, "summary_from": "start"},
+      {"name": "check-template", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "templates/project"], "summary_lines": 1, "summary_from": "start"},
+      {"name": "index-demo", "run": ["python3", "scripts/wiki/wiki.py", "index", "--root", "demo", "--check"], "summary_lines": 1}
+    ],
+    "files": ["scripts/wiki/wiki.py", "scripts/wiki/hooks/*", "tests/test_wiki.py"]
+  },
   "remind": {
     "watch": [
-      {"name": "wiki", "code": ["scripts/wiki/*", "tests/*"], "docs": ["scripts/wiki/README.md", "docs/design/automation.md"]},
-      {"name": "templates", "code": ["templates/*"], "docs": ["templates/README.md", "docs/guides/adoption.md"]}
+      {"name": "wiki", "code": ["scripts/wiki/wiki.py", "scripts/wiki/hooks/*", "tests/*"], "docs": ["scripts/wiki/*.md", "docs/design/automation.md"]},
+      {"name": "templates", "code": ["templates/*"], "docs": ["templates/README.md", "docs/guides/adoption.md"]},
+      {"name": "system-rules", "code": ["docs/design/*", "docs/principles/*", "docs/requirements/*", "docs/guides/*", "docs/standards/*"], "docs": ["templates/*", "demo/*", "AGENTS.md"]}
     ],
     "threshold": {"commits": 10, "lines": 300},
     "block_at": {"commits": 30},
-    "ask_user": ["docs/requirements/*", "docs/principles/*", "docs/decisions/*", "*/docs/decisions/*"]
+    "ask_user": ["docs/requirements/*", "docs/principles/*", "docs/decisions/*"]
   }
 }

@@ -10,4 +10,4 @@
 
 【待填：环境前提、工作目录、可直接执行的命令、成功与失败的表现。】
 
-Wiki 工具由 ProjectWiki 提供。复制 `scripts/wiki/` 后，在本仓库运行 `python3 scripts/wiki/wiki.py check --root .`。
+Wiki 工具由 ProjectWiki 提供。复制 `scripts/wiki/` 后，在本仓库运行 `python3 scripts/wiki/wiki.py verify --root .`；它运行 `docs/wiki.json` 的 `verify` 里登记的全部命令，模板默认只有文档检查。工具的命令、配置和固定写法分别见 `scripts/wiki/` 里的 `README.md`、`reference.md` 和 `formats.md`。

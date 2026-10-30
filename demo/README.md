@@ -7,10 +7,12 @@ NoteBox 为笔记提供标题校验。示例包含可运行的小模块，以及
 - 接续工作：从 [开发入口](dev/INDEX.md) 开始。
 - 接入其他项目时，先阅读 ProjectWiki 的接入指南；本示例目录可以独立复制。
 
-在 `demo/` 下运行：
+在 `demo/` 下运行测试：
 
 ```sh
 python3 -m unittest discover -s notes/tests -v
 ```
+
+文档工具由 ProjectWiki 提供。单独复制本示例时，把 `scripts/wiki/` 一起复制到根目录，再运行 `python3 scripts/wiki/wiki.py verify --root .`；在 ProjectWiki 仓库里，从仓库根目录运行 `python3 scripts/wiki/wiki.py verify --root demo`。
 
 示例仓库保持 `docs/`、`dev/`、`archive/` 并列。`notes/docs/` 保存模块知识。已结束的计划在 `archive/dev/plans/`；当前标题规则原位维护，修订历史交给 Git。

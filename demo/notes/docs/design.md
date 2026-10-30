@@ -1,5 +1,7 @@
 # 标题校验设计
 
+对应需求：NB-01。
+
 范围：notes 模块。状态：当前有效。
 
 `normalize_title` 位于 [src/title.py](../src/title.py)。函数先调用 `strip()`，再校验非空与 60 码点上限。它没有文件、网络或全局状态。

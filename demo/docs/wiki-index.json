@@ -13,9 +13,16 @@
       "title": "NoteBox 示例项目"
     },
     {
+      "path": "archive/INDEX.md",
+      "role": "archive",
+      "scope": "project",
+      "title": "历史记录"
+    },
+    {
       "path": "archive/dev/plans/initial-title-validation.md",
       "role": "archive",
       "scope": "project",
+      "status": "done",
       "title": "首次标题校验计划（历史示例）"
     },
     {
@@ -34,19 +41,45 @@
       "path": "dev/inbox/bug/combining-character-count.md",
       "role": "process",
       "scope": "project",
+      "status": "待分诊",
+      "status_class": "open",
       "title": "组合字符标题计数疑问"
     },
     {
       "path": "dev/inbox/request/preview-title.md",
       "role": "process",
       "scope": "project",
+      "status": "待分诊",
+      "status_class": "open",
       "title": "提供标题预览函数的建议"
     },
     {
       "path": "dev/plans/multiline-title.md",
       "role": "process",
       "scope": "project",
+      "status": "proposed",
+      "status_class": "draft",
       "title": "候选计划：评估单行标题"
+    },
+    {
+      "path": "dev/reviews/2026-10-28-title-input/README.md",
+      "role": "process",
+      "scope": "project",
+      "status": "执行中",
+      "status_class": "active",
+      "title": "审查：标题输入的边界与文档一致性"
+    },
+    {
+      "path": "dev/reviews/2026-10-28-title-input/r01-input-boundary.md",
+      "role": "process",
+      "scope": "project",
+      "title": "r01 输入边界"
+    },
+    {
+      "path": "dev/reviews/2026-10-28-title-input/r02-doc-consistency.md",
+      "role": "process",
+      "scope": "project",
+      "title": "r02 文档与实现一致性"
     },
     {
       "path": "dev/roadmap.md",
@@ -68,9 +101,17 @@
     },
     {
       "path": "docs/guides/maintenance.md",
+      "review_by": "2027-04-28",
       "role": "knowledge",
       "scope": "project",
-      "title": "标题校验失败的处理"
+      "title": "标题校验失败的处理",
+      "trust": "agent-checked",
+      "verified": [
+        {
+          "at": "2026-10-28",
+          "by": "agent:kiro"
+        }
+      ]
     },
     {
       "path": "docs/principles/product.md",
@@ -100,6 +141,8 @@
       "path": "notes/docs/decisions/unicode-length.md",
       "role": "knowledge",
       "scope": "notes",
+      "status": "采用",
+      "status_class": "current",
       "title": "决策：标题按 Unicode 码点计数"
     },
     {
