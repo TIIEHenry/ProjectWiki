@@ -16,3 +16,5 @@ python3 -m unittest discover -s notes/tests -v
 文档工具由 ProjectWiki 提供。单独复制本示例时，把 `scripts/wiki/` 一起复制到根目录，再运行 `python3 scripts/wiki/wiki.py verify --root .`；在 ProjectWiki 仓库里，从仓库根目录运行 `python3 scripts/wiki/wiki.py verify --root demo`。
 
 示例仓库保持 `docs/`、`dev/`、`archive/` 并列。`notes/docs/` 保存模块知识。已结束的计划在 `archive/dev/plans/`；当前标题规则原位维护，修订历史交给 Git。
+
+这些示例文件不要求每项修改都照建一份。普通标题校验修复可以只修改代码和测试，在提交信息里解释依据；边界明确且没有重要契约或风险变化的新行为，用需求条目和测试追踪。契约或重要风险变化时补充相关设计，多步骤协作或交接时建立计划，需要长期解释的重要取舍写决策记录。

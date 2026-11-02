@@ -1237,7 +1237,6 @@ def trace_check(wiki: Wiki) -> list[Finding]:
     prefixes = {requirement_prefix(r) for r in requirements}
     reference = wiki.requirements["patterns"]["reference"]
     review_dirs = {posixpath.dirname(p) for p in wiki.documents() if matches(p, wiki.review_patterns)}
-    design_refs: set[str] = set()
     test_refs: set[str] = set()
 
     def scan(path: str, text: str, kind: str) -> None:
@@ -1248,8 +1247,6 @@ def trace_check(wiki: Wiki) -> list[Finding]:
                     continue
                 if ref not in known:
                     findings.append(Finding("trace-unknown-ref", "error", path, f"References {ref}, which is not a defined requirement or acceptance item", number, ref))
-                elif kind == "design":
-                    design_refs.add(owner[ref])
                 elif kind == "test":
                     test_refs.add(ref)
                     test_refs.add(owner[ref])
@@ -1278,9 +1275,6 @@ def trace_check(wiki: Wiki) -> list[Finding]:
                 continue
     for requirement_id, item in requirements.items():
         status = item["status"]
-        if status in {"accepted", "implemented", "verified"} and requirement_id not in design_refs:
-            findings.append(Finding("trace-no-design", "warning", item["path"],
-                                    f"Requirement {requirement_id} is {item['raw_status']} but no design or module document references it", item["line"], requirement_id))
         if status in {"accepted", "implemented", "verified"} and not item["accept"]:
             findings.append(Finding("trace-no-acceptance", "warning", item["path"],
                                     f"Requirement {requirement_id} has no acceptance items like '- {requirement_id}.1 …'", item["line"], requirement_id))
@@ -2256,9 +2250,9 @@ def remind_report(wiki: Wiki, message_file: str | None = None) -> dict:
         docs_touched = any(matches(path, watch["docs"]) for path in staged_paths)
         if snap.staged and code and not docs_touched and name not in reviewed:
             findings.append(Finding("docs-not-updated", "warning", name,
-                                    f"[agent] Code under {', '.join(watch['code'])} changed but {', '.join(watch['docs'])} did not. "
-                                    f"If behavior, interfaces or rules changed, update those documents in this commit. "
-                                    f"Otherwise add the trailer '{REVIEW_TRAILER}: {name} <reason>'."))
+                                    f"[info] Code under {', '.join(watch['code'])} changed but {', '.join(watch['docs'])} did not. "
+                                    "If these changes make an existing document inaccurate, update that document in this commit. "
+                                    "Below the cumulative review threshold, this notice does not require a review trailer."))
         if snap.staged and (docs_touched or name in reviewed):
             item.update(commits=0, lines=0, since="this commit")
         elif snap.staged and code:
@@ -2275,7 +2269,8 @@ def remind_report(wiki: Wiki, message_file: str | None = None) -> dict:
         elif due:
             findings.append(Finding("docs-review-due", "warning", name,
                                     f"[agent] {counted} reached the reminder threshold {config['threshold']}. "
-                                    f"Check that the documents for {name} still match the code."))
+                                    f"Check that the documents for {name} still match the code; update them or add "
+                                    f"'{REVIEW_TRAILER}: {name} <reason>' after reviewing them."))
     if snap.staged:
         current = [p for p in wiki.documents() if wiki.role(p) != "archive"]
         for path in staged_paths:

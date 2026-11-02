@@ -575,6 +575,12 @@ class RemindTests(ProjectFixture):
         code, report = self.run_cli("remind", "--staged")
         self.assertEqual(code, 0, report)
         self.assertIn("docs-not-updated", self.rules(report))
+        reminder = next(x for x in report["findings"] if x["rule"] == "docs-not-updated")
+        self.assertEqual(reminder["severity"], "warning")
+        self.assertIn("[info]", reminder["message"])
+        self.assertNotIn("[agent]", reminder["message"])
+        self.assertNotIn("Docs-Reviewed", reminder["message"])
+        self.assertNotIn("docs-review-due", self.rules(report))
         self.assertEqual(self.watch(report)["notes"]["commits"], 1)
 
     def test_staged_numstat_uses_the_captured_index_and_head(self):
@@ -628,6 +634,9 @@ class RemindTests(ProjectFixture):
         code, report = self.run_cli("remind")
         self.assertEqual(code, 0, report)
         self.assertIn("docs-review-due", self.rules(report))
+        reminder = next(x for x in report["findings"] if x["rule"] == "docs-review-due")
+        self.assertIn("[agent]", reminder["message"])
+        self.assertIn("Docs-Reviewed", reminder["message"])
         self.assertEqual(self.watch(report)["notes"]["commits"], 3)
         self.write("notes/README.md", "# Notes\n\nReviewed.\n\n[Design](docs/design.md)\n")
         self.git("add", "notes/README.md")
@@ -746,6 +755,27 @@ class RemindTests(ProjectFixture):
         result = self.commit("Change limit", verify=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("docs-not-updated", result.stdout + result.stderr)
+
+    def test_ordinary_fix_and_test_pass_hooks_without_docs_or_review_trailer(self):
+        """PW-10.5 PW-11.1 PW-11.6"""
+        self.write("notes/src/title.py", 'def is_blank(title):\n    return title == ""\n')
+        self.write("notes/tests/test_title.py", 'from notes.src.title import is_blank\n\ndef test_blank_title():\n    assert is_blank("")\n')
+        self.write("notes/docs/design.md", "# Design\n\nWhitespace-only titles are blank. See [count decision](decisions/count.md).\n")
+        self.commit("Existing blank-title check", all_files=True)
+        self.install_hooks()
+        self.write("notes/src/title.py", 'def is_blank(title):\n    return not title.strip()\n')
+        self.write("notes/tests/test_title.py", 'from notes.src.title import is_blank\n\ndef test_blank_title():\n    assert is_blank("")\n    assert is_blank(" \\t")\n')
+        self.git("add", "notes/src/title.py", "notes/tests/test_title.py")
+        result = self.commit("Handle whitespace-only titles", verify=True)
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("docs-not-updated", output)
+        self.assertNotIn("[agent]", output)
+        self.assertNotIn("Docs-Reviewed", output)
+        self.assertNotIn("Docs-Reviewed", self.git("log", "-1", "--format=%B"))
+        self.assertEqual(set(self.git("diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()),
+                         {"notes/src/title.py", "notes/tests/test_title.py"})
+        self.assertEqual(self.watch(self.run_cli("remind")[1])["notes"]["commits"], 1)
 
     def test_doctor_reports_missing_hooks(self):
         """PW-09.6"""
@@ -994,15 +1024,14 @@ class TraceTests(ProjectFixture):
         self.assertIn(("trace-duplicate-id", "EX-01"), found)
         self.assertTrue({("trace-status-missing", "EX-03"), ("trace-status-missing", "EX-04")} <= found)
 
-    def test_missing_design_test_and_evidence_warn(self):
+    def test_missing_test_and_evidence_warn_without_requiring_design(self):
         """PW-16.3 PW-16.4 PW-16.5"""
         self.write("docs/design.md", "# Design\n\nNothing.\n")
         self.write("tests/test_x.py", "# no ids\n")
         self.write("docs/requirements/main.md", self.REQS.replace("证据：[tests](../../tests/test_x.py)。", "证据：见测试。"))
         code, report, found = self.trace()
         self.assertEqual(code, 0, report)
-        self.assertTrue({("trace-no-design", "EX-01"), ("trace-no-design", "EX-02"),
-                         ("trace-no-test", "EX-01"), ("trace-no-evidence", "EX-01")} <= found)
+        self.assertEqual(found, {("trace-no-test", "EX-01"), ("trace-no-evidence", "EX-01")})
         no_test = [x for x in report["findings"] if x["rule"] == "trace-no-test"][0]["message"]
         self.assertIn("EX-01.1", no_test)
         self.assertNotIn("EX-01.2", no_test, "manual acceptance items need no test")
@@ -1050,12 +1079,20 @@ class TraceTests(ProjectFixture):
         self.save_config()
         self.assertEqual(self.run_cli("check")[0], 2, "unknown requirements fields are reported")
 
-    def test_process_documents_do_not_count_as_design(self):
+    def test_requirement_and_tests_need_no_design_or_plan(self):
         """PW-16.3"""
-        self.write("docs/design.md", "# Design\n\nNothing.\n")
-        self.write("dev/INDEX.md", "# Work\n\nWorking on EX-01 and EX-02.\n")
-        found = self.trace()[2]
-        self.assertIn(("trace-no-design", "EX-01"), found)
+        (self.root / "docs/design.md").unlink()
+        code, report, found = self.trace()
+        self.assertEqual((code, found), (0, set()), report)
+        self.assertFalse((self.root / "dev/plans").exists())
+
+    def test_process_references_are_validated_without_requiring_design(self):
+        """PW-16.1 PW-16.3"""
+        (self.root / "docs/design.md").unlink()
+        self.write("dev/INDEX.md", "# Work\n\nWorking on EX-01, EX-02 and EX-03.\n")
+        code, report, found = self.trace()
+        self.assertEqual(code, 1, report)
+        self.assertEqual(found, {("trace-unknown-ref", "EX-03")})
 
     def test_plans_must_name_requirements_unless_finished_or_in_reviews(self):
         """PW-16.6"""

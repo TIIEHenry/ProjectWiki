@@ -12,7 +12,7 @@
 - 当前知识变化时原位更新对应正文；不为每次提交新建计划，也不机械改写状态页。
 - 发现问题或想法但拿不准放哪里、要不要做时，写进 `dev/inbox/<类型>/`（例子见 [待处理项](dev/inbox/README.md)），不要直接改 `docs/`。处理完时写明去向，状态改为"已完成"，再用 `archive` 归档。
 - 状态行、核对行、需求条目和审查问题的写法以 `scripts/wiki/formats.md` 为准；提交里新增 `human:` 名字时钩子会给出 `[user]` 提醒，Agent 不得把自己写成 `human:`。
-- 按 ProjectWiki 接入指南安装 Git 钩子后，每次提交都会运行文档提醒，配置在 `docs/wiki.json` 的 `remind`。看到 `[agent]` 提醒，就更新 `notes/docs/` 或模块入口，或者在提交信息最后一段写 `Docs-Reviewed: notes <理由>`；看到 `[user]` 提醒，先向用户确认需求或决策变更。不得用 `--no-verify` 跳过钩子。
+- 按 ProjectWiki 接入指南安装 Git 钩子后，每次提交都会运行文档提醒，配置在 `docs/wiki.json` 的 `remind`。单次 `docs-not-updated` 是 `[info]` 提示，未达累计阈值时不要求复核或写 trailer；已知正文失实时仍须当次更新。看到累计复核的 `[agent]` 提醒，核对后更新 `notes/docs/` 或模块入口，或者在提交信息最后一段写 `Docs-Reviewed: notes <理由>`；其他 `[agent]` 提醒按提示处理。看到 `[user]` 提醒，先向用户确认需求或决策变更。阈值与处理方式见 `scripts/wiki/reference.md` 的"提交时的文档提醒"。不得用 `--no-verify` 跳过钩子。
 - 改变标题计数等已有决定时，先写新的决策记录替代旧记录，并在同一次改动中更新本文件、项目需求、模块需求与设计、故障维护指南中仍写着旧规则的地方。按链接和关键词（如"码点"）两种方式查找。
 
 更多约定见 [开发规范](docs/standards/development.md)。接续已有工作才需要读 [开发入口](dev/INDEX.md)。

@@ -88,7 +88,6 @@
 | `trace-duplicate-id` | 错误 | 同一需求编号定义了两次 |
 | `trace-status-missing` | 错误 | 需求下面没有可识别的状态行 |
 | `trace-acceptance-id` | 错误 | 验收子编号的前缀和所在需求不一致 |
-| `trace-no-design` | 警告 | 已接受、已实现或已验证的需求没有被任何非过程文档引用 |
 | `trace-no-acceptance` | 警告 | 已接受及之后状态的需求没有验收条目 |
 | `trace-no-test` | 警告 | 已实现或已验证的需求有没标"（人工验证）"的验收条目，没被任何测试引用 |
 | `trace-manual-evidence` | 警告 | 验收条目标了"（人工验证）"，却没有对应的 `验收核对：<ID>，agent:<name>，YYYY-MM-DD。` 记录 |
@@ -96,7 +95,7 @@
 | `trace-no-evidence` | 警告 | 已验证的需求没有带链接的"证据："行 |
 | `trace-plan-scope` | 警告 | 未结束的计划没有"覆盖需求："一行；维护类工作写"覆盖需求：无（原因）"。审查目录中的计划不检查 |
 
-编号前缀是已定义编号中第一个数字之前的部分（`PW-11` 的前缀是 `PW-`），只有前缀相同的文字才会被当作引用，所以 `UTF-8`、`SHA-256` 不会误报。`dev/` 等过程目录中的引用只检查是否存在，不算设计引用。工具只确认编号引用存在，不判断测试是否真的覆盖了验收条件。
+编号前缀是已定义编号中第一个数字之前的部分（`PW-11` 的前缀是 `PW-`），只有前缀相同的文字才会被当作引用，所以 `UTF-8`、`SHA-256` 不会误报。文档和过程记录中已有的引用都检查编号是否存在。工具不要求每条需求都有设计引用或计划；轻量变化可以只保留需求条目与测试，不需要增加豁免字段。是否需要设计和计划由改动影响判断。工具只确认编号引用存在，不判断测试是否真的覆盖了验收条件。
 
 ### 核对记录与复核期限
 
@@ -321,7 +320,7 @@ python3 scripts/wiki/wiki.py archive dev/plans/finished-work.md --root . --apply
 ```
 
 - `watch`：一组代码路径和对应文档。模式用 `fnmatch` 语法，`*` 可以跨目录。规则、模板和示例需要同步的项目可以再登记一组观察项，例如代码为 `docs/design/*`、`docs/principles/*`，文档为 `templates/*`、`demo/*` 和入口摘要。
-- `threshold`：从上次更新这些文档以来，累计提交次数或改动行数达到任一值时提醒。
+- `threshold`：从上次更新或复核这些文档以来，累计提交次数或改动行数达到任一值时，要求核对文档。核对后更新正文，或用带理由的复核 trailer 清零；这条提醒本身不阻断提交。
 - `block_at`：可选。累计量达到这个值后，新的提交如果继续改代码、又没有更新或复核文档，就会失败。不配置时永远只提醒。
 - `ask_user`：改动这些文件时，提醒 Agent 先向用户确认，除非用户已经要求这项修改。
 - `decisions`：可选，决策记录的位置，默认是 `docs/decisions/*` 与 `*/docs/decisions/*`。
@@ -343,15 +342,15 @@ python3 scripts/wiki/wiki.py archive dev/plans/finished-work.md --root . --apply
 
 提交时会报告：
 
-- `docs-not-updated`：本次改了代码，对应文档没改，也没有复核 trailer。
-- `docs-review-due` / `docs-review-overdue`：累计量达到提醒值或拦截值。
+- `docs-not-updated`：本次改了代码，对应文档没改，也没有复核 trailer。这条是 `[info]` 信息提示，未达累计阈值时不要求复核、改文档或补 trailer。
+- `docs-review-due` / `docs-review-overdue`：累计量达到提醒值或拦截值，给出 `[agent]` 提醒要求复核；只有达到 `block_at` 且本次继续改代码未复核时才阻断。
 - `decision-sync`：本次改了决策记录，列出链接到它、但本次没有改动的现行文档。没有链接、直接复述结论的文档列不出来，仍需按关键词搜索。
 - `ask-user`：本次改了 `ask_user` 中的文件。
 - `review-trailer-incomplete`：提交信息里的 `Docs-Reviewed` 没有写理由，不清零计数。
 - `human-claim-added`：本次暂存的 Markdown 文件新增了写着 `human:<名字>` 的行，例如核对行、核对表、负责人或签收。Agent 不得把自己写成 `human:`，工具又分不出是谁写的，所以这条是 `[user]` 提醒：确认名字对应的人确实做了这件事，否则改成 `agent:`。代码块和行内代码里的格式示例不算。
 - `remind-not-configured`：配置里没有 `remind`。提醒未启用，命令退出码为 0，提交继续完成。
 
-需要处理的提醒以 `[agent]` 或 `[user]` 开头：前者由 Agent 自己处理，后者需要告诉用户。`remind-not-configured` 只说明提醒未启用。工具不判断文档内容是否与代码一致。
+需要处理的提醒以 `[agent]` 或 `[user]` 开头：前者由 Agent 按提示处理，后者需要告诉用户。`[info]` 不要求消除，也不要求填写复核 trailer。已知代码变化使文档中的行为、接口或规则失实时，仍须在同一次改动中更新正文，不能等累计阈值。`remind-not-configured` 只说明提醒未启用。工具不判断文档内容是否与代码一致。
 
 ### 计划和待处理项的生命周期提醒
 
