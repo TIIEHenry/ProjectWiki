@@ -22,10 +22,15 @@ SPEC.loader.exec_module(wiki)
 
 
 class ProjectFixture(unittest.TestCase):
+    # Tests that need neighbouring repositories put the project one level down.
+    ROOT_SUBDIR = ""
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.parent = Path(self.temp.name)
+        self.root = self.parent / self.ROOT_SUBDIR if self.ROOT_SUBDIR else self.parent
+        self.root.mkdir(exist_ok=True)
         self.config = {
             "version": 1,
             "project_name": "Example",
@@ -137,11 +142,125 @@ class WikiTests(ProjectFixture):
         self.assertEqual(code, 1)
         self.assertIn("broken-anchor", self.rules(report))
 
+    def test_line_numbers_stay_exact_on_long_pages(self):
+        """PW-09.1"""
+        body = "".join(f"[Index {n}](INDEX.md)\n" for n in range(3000))
+        self.write("docs/topic.md", "# Topic\n" + body + "[Missing](missing.md)\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        broken = [x for x in report["findings"] if x["rule"] == "broken-link"]
+        self.assertEqual([(x["path"], x["line"]) for x in broken], [("docs/topic.md", 3002)])
+
+    def test_footnote_definitions_are_not_reference_links(self):
+        """PW-09.9"""
+        self.write("docs/topic.md", """# Topic
+Closed on JVM only.[^scope]
+
+[^scope]: **≠ device** run. See [the index](INDEX.md).
+""")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        self.write("docs/topic.md", "# Topic\nNote.[^scope]\n\n[^scope]: See [gone](missing.md).\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        broken = [x for x in report["findings"] if x["rule"] == "broken-link"]
+        self.assertEqual([(x["line"], x["message"].split(": ")[-1]) for x in broken], [(4, "missing.md")])
+
+    def test_working_tree_skips_untracked_paths_git_ignores(self):
+        """PW-09.10"""
+        self.write("app/build/docs/generated.md", "# Generated\n")
+        self.write("README.md", "# Example\n[Knowledge](docs/INDEX.md#current)\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        self.assertEqual(report["coverage"]["git_ignored"], "not-applied")
+        self.assertIn("unregistered-docs", self.rules(report))
+        self.write(".gitignore", "build/\nvendor/\nlocal.md\n")
+        self.write("local.md", "# Local notes\n")
+        self.initialize_index()
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(report["coverage"]["git_ignored"], "git-ignored-skipped")
+        # A link to an ignored, untracked file would not resolve in another clone.
+        self.write("README.md", "# Example\n[Knowledge](docs/INDEX.md#current)\n[Local](local.md)\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        self.assertIn("broken-link", self.rules(report))
+        # Tracked files stay in the snapshot even under an ignored directory.
+        self.write("README.md", "# Example\n[Knowledge](docs/INDEX.md#current)\n")
+        self.write("vendor/docs/README.md", "# Vendor\n")
+        self.git("add", "-f", "vendor/docs/README.md")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        unregistered = [x["path"] for x in report["findings"] if x["rule"] == "unregistered-docs"]
+        self.assertEqual(unregistered, ["vendor/docs"])
+
     def test_relative_root_directory_link(self):
         """PW-09.1"""
         self.write("docs/topic.md", "# Topic\n[Project](../)\n[Remote](//example.com/help)\n")
         code, report = self.run_cli("check")
         self.assertEqual(code, 0, report)
+
+    def test_broken_links_suggest_the_depth_that_resolves(self):
+        """PW-09.11"""
+        self.write("docs/sub/deep.md", "# Deep\n\n[Up](INDEX.md#current)\n[Lost](missing.md)\n")
+        self.write("docs/topic.md", "# Topic\n\n[Readme](../../README.md)\n[Nowhere](../../nothing.md)\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        messages = {x["path"] + ":" + str(x["line"]): x["message"] for x in report["findings"]}
+        self.assertIn("Written as '../INDEX.md#current' it would resolve to docs/INDEX.md", messages["docs/sub/deep.md:3"])
+        self.assertEqual(messages["docs/sub/deep.md:4"], "Target does not exist with exact case: missing.md")
+        self.assertIn("Written as '../README.md' it would resolve to README.md", messages["docs/topic.md:3"])
+        self.assertIn("register it under repos", messages["docs/topic.md:4"])
+        # The hint is not part of the baseline fingerprint, so a baseline written earlier still matches.
+        found = wiki.check(wiki.Wiki(wiki.Snapshot(self.root)))
+        prints = {f.fingerprint() for f in found if f.rule == "unsupported-link"}
+        self.assertEqual(prints, {"unsupported-link|docs/topic.md|Link leaves the selected project root: ../../README.md",
+                                  "unsupported-link|docs/topic.md|Link leaves the selected project root: ../../nothing.md"})
+        self.assertIn("broken-link|docs/sub/deep.md|INDEX.md#current", {f.fingerprint() for f in found})
+
+    def test_markdown_outside_every_registered_root_is_reported(self):
+        """PW-09.12"""
+        self.write("vendor/lib/README.md", "# Vendor\n\n[Gone](missing.md)\n")
+        self.write("client/docs/README.md", "# Client\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        self.assertEqual(report["coverage"]["unregistered_markdown"], {"count": 1, "paths": ["vendor/lib/README.md"]})
+        self.assertEqual([x["path"] for x in report["findings"] if x["rule"] == "unregistered-docs"], ["client/docs"])
+        warning = [x for x in report["findings"] if x["rule"] == "unregistered-markdown"]
+        self.assertEqual(len(warning), 1)
+        self.assertIn("vendor/lib/README.md", warning[0]["message"])
+        self.assertEqual(warning[0]["severity"], "warning")
+        self.config["exclude"].extend(["vendor/**", "client/**"])
+        self.save_config()
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(report["coverage"]["unregistered_markdown"], {"count": 0, "paths": []})
+        self.assertNotIn("unregistered-markdown", self.rules(report))
+
+    def test_links_into_a_submodule_that_is_not_checked_out_are_not_broken(self):
+        """PW-09.13"""
+        self.write("dev/INDEX.md", "# Work\n\n[Loop](loop/INDEX.md)\n[Folder](loop/)\n")
+        self.initialize_index()
+        self.git("update-index", "--add", "--cacheinfo", "160000," + "a" * 40 + ",dev/loop")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        self.assertNotIn("broken-link", self.rules(report))
+        notice = [x for x in report["findings"] if x["rule"] == "repo-not-checked-out"]
+        self.assertEqual([(x["path"], x["severity"]) for x in notice], [("dev/loop", "warning")])
+        self.assertIn("1 links into submodule dev/loop", notice[0]["message"])
+        self.assertEqual(report["coverage"]["submodules"], [{"path": "dev/loop", "checked_out": False, "links_unchecked": 1}])
+        code, report = self.run_cli("check", "--staged")
+        self.assertEqual(code, 0, report)
+        self.assertIn("repo-not-checked-out", self.rules(report))
+        self.assertEqual(self.run_cli("check", "--require-repos")[0], 2)
+        # Once the submodule is checked out its files are read like any others.
+        self.write("dev/loop/.git", "gitdir: ../../.git/modules/loop\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1, report)
+        self.assertIn("broken-link", self.rules(report))
+        self.assertNotIn("repo-not-checked-out", self.rules(report))
+        self.write("dev/loop/INDEX.md", "# Loop\n")
+        self.assertEqual(self.run_cli("check", "--require-repos")[0], 0)
 
     def test_standalone_agent_imports_are_case_sensitive(self):
         """PW-03.3"""
@@ -471,13 +590,16 @@ class WikiTests(ProjectFixture):
         self.assertIn("broken-link", self.rules(report))
 
     def test_staged_requires_git_and_index_configuration(self):
-        """PW-09.4"""
+        """PW-09.4 PW-41.3"""
         self.assertEqual(self.run_cli("check", "--staged")[0], 2)
         self.initialize_index()
         self.git("rm", "--cached", "docs/wiki.json")
+        # Config now in neither the index nor HEAD (no commit yet): the project has not
+        # committed its adoption, so the staged check reports config-not-committed and exits 0.
         code, report = self.run_cli("check", "--staged")
-        self.assertEqual(code, 2)
-        self.assertEqual(report["result"], "incomplete")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(report["result"], "not_checked")
+        self.assertIn("config-not-committed", self.rules(report))
 
     def test_staged_blob_reads_remain_frozen_after_index_changes(self):
         """PW-09.3"""
@@ -568,6 +690,50 @@ class RemindTests(ProjectFixture):
 
     def watch(self, report):
         return {item["name"]: item for item in report["watch_status"]}
+
+    def test_adopted_at_limits_rules_that_would_force_rewriting_old_files(self):
+        """PW-13.4 PW-13.5"""
+        self.write("dev/plans/old-nostatus.md", "# Old plan\n\nSteps.\n")
+        self.write("dev/plans/old-done.md", "# Old done\n\n状态：已完成。\n")
+        self.write("dev/plans/old-extra.md", "# Old extra\n\n状态：已完成。\n")
+        self.write("docs/decisions/old.md", "# Old decision\n\nNo status line.\n")
+        self.write("docs/old-orphan.md", "# Nobody links here\n")
+        self.write("dev/reviews/2026-01-01-old/README.md", "# Old review\n\n状态：执行中。\n\n## r01-1 Free-form note\n\nText.\n")
+        self.commit("Old layout", all_files=True)
+        adopted = self.git("rev-parse", "HEAD")
+        self.config["dir_budgets"] = {"dev/plans": 2}
+        self.save_config()
+        code, report = self.run_cli("check")
+        before = self.rules(report)
+        self.assertTrue({"status-missing", "orphan-page", "dir-budget", "review-verdict-missing"} <= before, report)
+        self.config["adopted_at"] = adopted[:10]
+        self.save_config()
+        self.write("dev/plans/new-nostatus.md", "# New plan\n\nSteps.\n")
+        self.write("docs/new-orphan.md", "# Also unlinked\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(report["coverage"]["adopted_at"], adopted)
+        by_rule = {}
+        for item in report["findings"]:
+            by_rule.setdefault(item["rule"], []).append(item["path"])
+        self.assertEqual(by_rule.get("status-missing"), ["dev/plans/new-nostatus.md"])
+        self.assertEqual(by_rule.get("orphan-page"), ["docs/new-orphan.md"])
+        self.assertNotIn("dir-budget", by_rule)
+        self.assertNotIn("review-verdict-missing", by_rule)
+        # Lifecycle reminders on old files become one summary; --all lists them.
+        code, report = self.run_cli("remind")
+        rules = [x["rule"] for x in report["findings"]]
+        self.assertEqual(rules.count("legacy-lifecycle"), 1, report)
+        self.assertNotIn("plan-finished-not-archived", rules)
+        self.assertEqual([x["path"] for x in report["findings"] if x["rule"] == "plan-no-status"], ["dev/plans/new-nostatus.md"])
+        code, report = self.run_cli("remind", "--all")
+        finished = sorted(x["path"] for x in report["findings"] if x["rule"] == "plan-finished-not-archived")
+        self.assertEqual(finished, ["dev/plans/old-done.md", "dev/plans/old-extra.md"])
+        self.assertNotIn("legacy-lifecycle", self.rules(report))
+        for bad in ("no-such-commit", "", 5, "--all"):
+            self.config["adopted_at"] = bad
+            self.save_config()
+            self.assertEqual(self.run_cli("check")[0], 2, bad)
 
     def test_staged_code_without_docs_reminds_without_blocking(self):
         """PW-11.1"""
@@ -1079,6 +1245,43 @@ class TraceTests(ProjectFixture):
         self.save_config()
         self.assertEqual(self.run_cli("check")[0], 2, "unknown requirements fields are reported")
 
+    def test_requirement_groups_have_separate_id_spaces(self):
+        """PW-16.9"""
+        self.config["modules"] = [{"name": "tui", "path": "tui", "entry": "tui/README.md", "docs": "tui/docs"}]
+        self.config["requirements"] = [
+            {"name": "engine", "files": ["docs/requirements/*.md"], "docs": ["docs/*", "dev/*"], "tests": ["tests/*"]},
+            {"name": "tui", "files": ["tui/docs/requirements.md"], "docs": ["tui/*"], "tests": ["tui/tests/*"]},
+        ]
+        self.save_config()
+        self.write("docs/requirements/main.md", "# Engine\n\n### PRD-001 Embed\n\n状态：已实现。\n\n- PRD-001.1 Runs one turn.\n")
+        self.write("docs/design.md", "# Design\n\n对应需求：PRD-001。\n")
+        self.write("tests/test_x.py", '"""PRD-001.1"""\n')
+        self.write("tui/README.md", "# TUI\n\n[Requirements](docs/requirements.md)\n")
+        self.write("tui/docs/requirements.md", "# TUI\n\n### PRD-001 Sessions\n\n状态：已实现。\n\n- PRD-001.1 Lists sessions.\n- PRD-001.2 Opens one.\n\n"
+                   "### PRD-002 Search\n\n状态：已接受。\n\n- PRD-002.1 Finds text.\n")
+        self.write("tui/docs/design.md", "# TUI design\n\n对应需求：PRD-001、PRD-002。\n")
+        self.write("tui/tests/test_y.py", '"""PRD-001.1 PRD-001.2"""\n')
+        code, report, found = self.trace()
+        self.assertEqual((code, found), (0, set()), report)
+        # PRD-001.2 exists only in the tui group, so the engine design cannot cite it.
+        self.write("docs/design.md", "# Design\n\n对应需求：PRD-001、PRD-001.2。\n")
+        code, report, found = self.trace()
+        self.assertEqual(code, 1)
+        self.assertEqual([(x["path"], x["key"]) for x in report["findings"] if x["rule"] == "trace-unknown-ref"],
+                         [("docs/design.md", "PRD-001.2")])
+        self.write("docs/design.md", "# Design\n\n对应需求：PRD-001。\n")
+        self.write("tui/tests/test_y.py", '"""PRD-001.1"""\n')
+        found = self.trace()[2]
+        self.assertEqual(found, {("trace-no-test", "PRD-001")})
+        # One requirements file cannot belong to two groups.
+        self.config["requirements"][1]["files"].append("docs/requirements/main.md")
+        self.save_config()
+        self.assertEqual(self.run_cli("check")[0], 2)
+        for groups in ([{"files": ["docs/requirements/*.md"]}], [{"name": "a", "files": ["x"]}, {"name": "a", "files": ["y"]}], []):
+            self.config["requirements"] = groups
+            self.save_config()
+            self.assertEqual(self.run_cli("check")[0], 2, groups)
+
     def test_requirement_and_tests_need_no_design_or_plan(self):
         """PW-16.3"""
         (self.root / "docs/design.md").unlink()
@@ -1298,6 +1501,53 @@ class StatusAndBaselineTests(ProjectFixture):
         self.save_config()
         self.assertEqual(self.run_cli("check")[0], 2)
 
+    def test_registered_frontmatter_field_supplies_status_without_status_line(self):
+        """PW-12.6"""
+        self.write("docs/decisions/old.md", "---\ntitle: Old\nstatus: superseded  # replaced\n---\n# Old decision\n\nSee new.\n")
+        self.write("docs/INDEX.md", "# Current\n\n[Work](../dev/INDEX.md)\n[Rule](decisions/old.md)\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        self.assertIn("status-missing", self.rules(report))
+        self.config["status_frontmatter"] = "status"
+        self.save_config()
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1, report)
+        self.assertNotIn("status-missing", self.rules(report))
+        self.assertIn("links-replaced-document", self.rules(report))
+        self.write("docs/decisions/old.md", "---\nstatus: \"accepted\"\n---\n# Old decision\n")
+        code, report = self.run_cli("check")
+        self.assertEqual([x["key"] for x in report["findings"] if x["rule"] == "status-unknown"], ["accepted"])
+        self.config["status_values"] = {"accepted": "current"}
+        self.save_config()
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        self.assertFalse({"status-unknown", "status-missing"} & self.rules(report))
+        for bad in (3, "", "status: x"):
+            self.config["status_frontmatter"] = bad
+            self.save_config()
+            self.assertEqual(self.run_cli("check")[0], 2, bad)
+
+    def test_status_line_and_frontmatter_must_agree(self):
+        """PW-12.7"""
+        self.config["status_frontmatter"] = "status"
+        self.config["status_values"] = {"accepted": "current"}
+        self.save_config()
+        self.write("dev/plans/upload.md", "---\nstatus: accepted\n---\n# Upload\n\n状态：执行中。\n覆盖需求：无（示例）。\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        mismatch = [x for x in report["findings"] if x["rule"] == "status-mismatch"]
+        self.assertEqual([(x["path"], x["severity"]) for x in mismatch], [("dev/plans/upload.md", "warning")])
+        # The status line wins; remind treats the plan as active, not current.
+        self.assertEqual(wiki.Wiki(wiki.Snapshot(self.root)).status("dev/plans/upload.md"), ("执行中", "active"))
+        self.write("dev/plans/upload.md", "---\nstatus: active\n---\n# Upload\n\n状态：执行中。\n")
+        self.assertNotIn("status-mismatch", self.rules(self.run_cli("check")[1]))
+        self.write("dev/plans/upload.md", "---\nstatus: review\n---\n# Upload\n\n状态：执行中。\n")
+        code, report = self.run_cli("check")
+        self.assertEqual([x["key"] for x in report["findings"] if x["rule"] == "status-unknown"], ["review"])
+        del self.config["status_frontmatter"]
+        self.save_config()
+        self.assertFalse({"status-unknown", "status-mismatch"} & self.rules(self.run_cli("check")[1]))
+
     def test_baseline_accepts_known_problems_but_not_new_ones(self):
         """PW-13.1"""
         self.config["baseline"] = "docs/wiki-baseline.json"
@@ -1379,10 +1629,14 @@ class AutomationTests(ProjectFixture):
         self.assertEqual(len(report["writes"]), 3)
 
     def test_copied_project_template_checks_and_verifies(self):
-        """PW-10.2"""
+        """PW-10.2, PW-10.7, PW-10.9, PW-10.11: copied entries resolve to local skills."""
         target = self.root / "copied"
         shutil.copytree(SCRIPT.parents[2] / "templates" / "project", target)
         shutil.copytree(SCRIPT.parent, target / "scripts" / "wiki", ignore=shutil.ignore_patterns("__pycache__"))
+        for name in ("sync-docs-and-commit", "adopt-projectwiki", "review-docs", "organize-docs", "capture-knowledge"):
+            skill_path = f"scripts/wiki/skills/{name}/SKILL.md"
+            self.assertIn(skill_path, (target / "AGENTS.md").read_text(encoding="utf-8"))
+            self.assertTrue((target / skill_path).is_file())
         for command in ("check", "verify"):
             result = subprocess.run([sys.executable, str(target / "scripts/wiki/wiki.py"), command, "--root", str(target)],
                                     capture_output=True, text=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
@@ -1678,10 +1932,10 @@ class AutomationTests(ProjectFixture):
         self.git("-c", "user.name=t", "-c", "user.email=t@x.invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "base")
         report = self.run_cli("remind")[1]
         self.assertEqual(report["active_plans"], [{"path": "dev/plans/a.md", "status": "执行中", "owner": "agent:kiro"},
-                                                  {"path": "dev/plans/b.md", "status": "阻塞", "owner": None}])
+                                                  {"path": "dev/plans/b.md", "status": "阻塞", "owner": None, "reason": None}])
 
     def test_copied_files_only_link_to_what_is_copied(self):
-        """PW-10.3"""
+        """PW-10.3, PW-10.7: nested skills travel with their local references."""
         repository = Path(__file__).resolve().parents[1]
 
         def local_targets(path):
@@ -1692,7 +1946,7 @@ class AutomationTests(ProjectFixture):
                     yield target or link.target
 
         tool = repository / "scripts" / "wiki"
-        for path in sorted(tool.glob("*.md")):
+        for path in sorted(tool.rglob("*.md")):
             for target in local_targets(path):
                 self.assertTrue(target.startswith("scripts/wiki/") and (repository / target).is_file(),
                                 f"{path.name} links to {target}, which is not copied with the tool")
@@ -1751,6 +2005,161 @@ class AutomationTests(ProjectFixture):
         project = wiki.Wiki(wiki.Snapshot(repository))
         self.assertTrue(project.reconcile, "docs/wiki.json registers the rule-name reconcile")
         self.assertEqual([f.message for f in wiki.reconcile_check(project)], [])
+
+
+class RepoLinkTests(ProjectFixture):
+    """Links into registered neighbouring repositories, with the project one level below its parent."""
+
+    ROOT_SUBDIR = "project"
+    GIT_ENV = {"GIT_AUTHOR_NAME": "Wiki Test", "GIT_AUTHOR_EMAIL": "wiki@example.invalid",
+               "GIT_COMMITTER_NAME": "Wiki Test", "GIT_COMMITTER_EMAIL": "wiki@example.invalid"}
+
+    def setUp(self):
+        super().setUp()
+        if not shutil.which("git"):
+            self.skipTest("git is required for repository link tests")
+        self.other = self.parent / "other"
+        self.write_other("docs/api.md", "# API\n\n## Version\n\nText.\n")
+        self.git_other("init", "-q")
+        self.git_other("add", "-A")
+        self.git_other("commit", "-q", "-m", "Provider docs")
+        self.config["repos"] = [{"name": "other", "path": "../other"}]
+        self.save_config()
+        self.write("docs/INDEX.md", "# Current\n\n[Work](../dev/INDEX.md)\n[Topic](topic.md)\n")
+        self.write("docs/topic.md", "# Topic\n\n[API](../../other/docs/api.md#version)\n")
+
+    def write_other(self, path, content):
+        target = self.other / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    def git_other(self, *args):
+        result = subprocess.run(["git", "-C", str(self.other), "-c", "commit.gpgsign=false", *args],
+                                capture_output=True, text=True, env={**os.environ, **self.GIT_ENV})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
+
+    def repo(self, report):
+        return report["coverage"]["repos"][0]
+
+    def test_links_into_a_checked_out_repository_are_verified(self):
+        """PW-27.1 PW-27.2"""
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        self.assertEqual((self.repo(report)["status"], self.repo(report)["links_checked"], self.repo(report)["links_unchecked"]),
+                         ("checked-out", 1, 0))
+        self.assertEqual(self.repo(report)["read"], "working-tree")
+        for link, rule in (("../../other/docs/missing.md", "broken-link"), ("../../other/Docs/api.md", "broken-link"),
+                           ("../../other/docs/api.md#absent", "broken-anchor")):
+            self.write("docs/topic.md", f"# Topic\n\n[API]({link})\n")
+            code, report = self.run_cli("check")
+            self.assertEqual(code, 1, link)
+            hit = [x for x in report["findings"] if x["rule"] == rule]
+            self.assertEqual([(x["path"], x["key"]) for x in hit], [("docs/topic.md", link)], link)
+            self.assertIn("repository other", hit[0]["message"])
+        self.write("docs/topic.md", "# Topic\n\n[Whole](../../other) and [Docs](../../other/docs)\n")
+        self.assertEqual(self.run_cli("check")[0], 0)
+
+    def test_a_link_written_one_level_short_names_the_fix(self):
+        """PW-27.3"""
+        self.write("docs/topic.md", "# Topic\n\n[API](../other/docs/api.md#version)\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        message = [x["message"] for x in report["findings"] if x["rule"] == "broken-link"][0]
+        self.assertIn("Written as '../../other/docs/api.md#version' it would resolve to ../other/docs/api.md", message)
+
+    def test_a_repository_that_is_not_checked_out_is_reported_not_failed(self):
+        """PW-27.4"""
+        os.rename(self.other, self.parent / "elsewhere")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 0, report)
+        notice = [x for x in report["findings"] if x["rule"] == "repo-not-checked-out"]
+        self.assertEqual([x["key"] for x in notice], ["other"])
+        self.assertIn("1 links into repository other were not checked", notice[0]["message"])
+        self.assertEqual((self.repo(report)["status"], self.repo(report)["links_unchecked"]), ("not-checked-out", 1))
+        code, report = self.run_cli("check", "--require-repos")
+        self.assertEqual(code, 2)
+        self.assertIn("other (../other)", report["findings"][0]["message"])
+        # An empty directory is not a checkout either.
+        (self.parent / "other").mkdir()
+        self.assertEqual(self.run_cli("check")[1]["coverage"]["repos"][0]["status"], "not-checked-out")
+
+    def test_a_staged_check_reads_the_head_commit_of_the_repository(self):
+        """PW-27.5"""
+        self.initialize_index()
+        head = self.git_other("rev-parse", "HEAD")[:12]
+        # An edit the provider has not committed is seen by a workspace check but not by a staged one.
+        self.write_other("docs/api.md", "# API\n\n## Version\n\n## Extra\n")
+        self.write("docs/topic.md", "# Topic\n\n[API](../../other/docs/api.md#extra)\n")
+        self.git("add", "docs/topic.md")
+        self.assertEqual(self.run_cli("check")[0], 0)
+        code, report = self.run_cli("check", "--staged")
+        self.assertEqual(code, 1, report)
+        self.assertEqual([x["rule"] for x in report["findings"]], ["broken-anchor"])
+        self.assertEqual((self.repo(report)["read"], self.repo(report)["head"]), ("git-head", head))
+        # And the other way round: removing an anchor in the working tree does not hide it from a staged check.
+        self.write("docs/topic.md", "# Topic\n\n[API](../../other/docs/api.md#version)\n")
+        self.git("add", "docs/topic.md")
+        self.write_other("docs/api.md", "# API\n")
+        self.assertEqual(self.run_cli("check")[0], 1)
+        code, report = self.run_cli("check", "--staged")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(self.repo(report)["links_checked"], 1)
+        self.git_other("add", "-A")
+        self.git_other("commit", "-q", "-m", "Drop the anchor")
+        self.assertEqual(self.run_cli("check", "--staged")[0], 1)
+
+    def test_a_directory_without_a_head_commit_is_not_read_by_a_staged_check(self):
+        """PW-27.5"""
+        shutil.rmtree(self.other / ".git")
+        self.initialize_index()
+        self.assertEqual(self.run_cli("check")[0], 0)
+        code, report = self.run_cli("check", "--staged")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(self.repo(report)["status"], "no-git-head")
+        self.assertIn("repo-not-checked-out", self.rules(report))
+        self.assertEqual(self.run_cli("check", "--staged", "--require-repos")[0], 2)
+
+    def test_a_symlink_that_leaves_the_repository_is_not_followed(self):
+        """PW-27.2"""
+        outside = self.parent / "secret.md"
+        outside.write_text("# Secret\n", encoding="utf-8")
+        try:
+            os.symlink(outside, self.other / "docs" / "escape.md")
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks are not available")
+        self.write("docs/topic.md", "# Topic\n\n[Escape](../../other/docs/escape.md)\n")
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        self.assertEqual([x["rule"] for x in report["findings"]], ["broken-link"])
+
+    def test_invalid_repository_entries_are_incomplete(self):
+        """PW-27.6"""
+        bad = [
+            "other", [], [{"name": "other"}], [{"path": "../other"}],
+            [{"name": "a b", "path": "../other"}],
+            [{"name": "other", "path": "other"}], [{"name": "other", "path": "docs"}],
+            [{"name": "other", "path": "../project"}], [{"name": "other", "path": "/tmp/other"}],
+            [{"name": "other", "path": ".."}], [{"name": "other", "path": "../other", "url": "x"}],
+            [{"name": "other", "path": "../other"}, {"name": "other", "path": "../third"}],
+            [{"name": "one", "path": "../other"}, {"name": "two", "path": "../other/docs"}],
+        ]
+        for value in bad:
+            self.config["repos"] = value
+            self.save_config()
+            self.assertEqual(self.run_cli("check")[0], 2, value)
+        self.config["repos"] = [{"name": "one", "path": "../other"}, {"name": "two", "path": "../third/../second"}]
+        self.save_config()
+        self.assertEqual(self.run_cli("check")[0], 0)
+
+    def test_a_project_without_repos_reports_no_repository_coverage(self):
+        """PW-27.6"""
+        del self.config["repos"]
+        self.save_config()
+        code, report = self.run_cli("check")
+        self.assertEqual(code, 1)
+        self.assertNotIn("repos", report["coverage"])
+        self.assertIn("unsupported-link", self.rules(report))
 
 
 if __name__ == "__main__":

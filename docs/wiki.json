@@ -13,7 +13,13 @@
     {"path": "docs/INDEX.md", "role": "entry", "max_chars": 4000},
     {"path": "scripts/wiki/README.md", "role": "entry", "max_chars": 6000},
     {"path": "scripts/wiki/reference.md", "role": "reference"},
-    {"path": "scripts/wiki/formats.md", "role": "reference"}
+    {"path": "scripts/wiki/formats.md", "role": "reference"},
+    {"path": "scripts/wiki/workflow.md", "role": "reference"},
+    {"path": "scripts/wiki/skills/sync-docs-and-commit/SKILL.md", "role": "reference"},
+    {"path": "scripts/wiki/skills/adopt-projectwiki/SKILL.md", "role": "reference"},
+    {"path": "scripts/wiki/skills/review-docs/SKILL.md", "role": "reference"},
+    {"path": "scripts/wiki/skills/organize-docs/SKILL.md", "role": "reference"},
+    {"path": "scripts/wiki/skills/capture-knowledge/SKILL.md", "role": "reference"}
   ],
   "exclude": ["tmp/**", "templates/**", "demo/**", ".git/**", "**/__pycache__/**"],
   "status_values": {"采用": "current"},
@@ -25,13 +31,13 @@
       "doc_pattern": "`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`",
       "code": ["scripts/wiki/wiki.py"],
       "code_pattern": "Finding\\(\\s*\"([a-z][a-z0-9]*(?:-[a-z0-9]+)+)\"",
-      "ignore": ["agent-checked", "human-checked", "check-new", "export-okf", "working-tree"]
+      "ignore": ["agent-checked", "human-checked", "check-new", "export-okf", "working-tree", "git-ignored-skipped", "not-applied", "checked-out", "not-checked-out", "no-git-head", "git-head"]
     }
   ],
   "verify": {
     "commands": [
-      {"name": "tests", "run": ["python3", "-m", "unittest", "discover", "-s", "tests"], "env": {"PYTHONDONTWRITEBYTECODE": "1"}},
-      {"name": "demo-tests", "run": ["python3", "-m", "unittest", "discover", "-s", "notes/tests"], "cwd": "demo", "env": {"PYTHONDONTWRITEBYTECODE": "1"}},
+      {"name": "tests", "kind": "test", "run": ["python3", "-m", "unittest", "discover", "-s", "tests"], "env": {"PYTHONDONTWRITEBYTECODE": "1"}},
+      {"name": "demo-tests", "kind": "test", "run": ["python3", "-m", "unittest", "discover", "-s", "notes/tests"], "cwd": "demo", "env": {"PYTHONDONTWRITEBYTECODE": "1"}},
       {"name": "check", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "."], "summary_lines": 1, "summary_from": "start"},
       {"name": "check-demo", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "demo"], "summary_lines": 1, "summary_from": "start"},
       {"name": "check-template", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "templates/project"], "summary_lines": 1, "summary_from": "start"},

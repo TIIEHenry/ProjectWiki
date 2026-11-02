@@ -52,6 +52,7 @@
   ],
   "status_values": {"采用": "current", "proposed": "draft"},
   "dir_budgets": {
+    "dev/*": 50,
     "dev/plans": 30,
     "dev/inbox/*": 30,
     "dev/reviews/*": 20
@@ -101,6 +102,7 @@
     "commands": [
       {
         "name": "tests",
+        "kind": "test",
         "run": [
           "python3",
           "-m",

@@ -11,7 +11,7 @@ ProjectWiki 是一套放进代码仓库的文档系统，供开发者和编码 A
 | 你要做什么 | 阅读入口 |
 |---|---|
 | 理解这套文档系统 | [设计原则](docs/principles/document-system.md) |
-| 给一个项目接入 | [接入指南](docs/guides/adoption.md) |
+| 给一个项目接入 | [接入指南](docs/guides/adoption.md)、[接入技能](scripts/wiki/skills/adopt-projectwiki/SKILL.md) |
 | 看一个完整实例 | [NoteBox 参考项目](demo/README.md) |
 | 理解 ADR、计划、路线图和审查的分工 | [开发流程](docs/guides/workflow.md) |
 | 创建或审查文档 | [中文技术文档规范](docs/standards/writing.md) |

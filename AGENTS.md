@@ -23,6 +23,7 @@
 | 改文档系统的规则 | [设计原则](docs/principles/document-system.md)、[文档模型](docs/design/document-model.md)、[生命周期与归档](docs/design/lifecycle.md) |
 | 改计划、决策、审查的流程 | [开发流程](docs/guides/workflow.md) |
 | 写或改规范正文 | [写作规范](docs/standards/writing.md) |
+| 用户要求同步文档并提交、收尾提交 | [同步文档与提交技能](scripts/wiki/skills/sync-docs-and-commit/SKILL.md) |
 | 改检查工具 | [工具入口](scripts/wiki/README.md)、[自动化设计](docs/design/automation.md)、`tests/`；规则和字段按名称在[配置与规则](scripts/wiki/reference.md)里搜索，不整篇读 |
 | 改状态行、需求条目、审查问题等固定写法 | [工具读取的写法](scripts/wiki/formats.md)，同时改 `wiki.py` 的 `KEYWORDS` 和取值表 |
 | 改模板或接入步骤 | [模板说明](templates/README.md)、[接入指南](docs/guides/adoption.md) |

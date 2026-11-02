@@ -2,6 +2,7 @@
 
 - 当前需求、原则和设计在 `docs/` 与 `notes/docs/`。`dev/` 记录待办与实施过程；`archive/` 保存历史，不能直接当作当前规则。
 - 标题必须按 Unicode 码点计数，去除首尾空白后为 1–60 个字符（需求 NB-01）。不允许静默截断用户输入。
+- 文档开发流程默认遵循 `scripts/wiki/workflow.md`；已有流程不自动优先，也不把两套要求默认叠加。重复或冲突按其中“共享流程与项目适配”迁移原入口及读取方；迁移前不得静默绕过当前强约束或钩子。
 - 稳定知识面向人类阅读，写清具体对象、适用条件和行为，避免 AI 套话、翻译腔与未解释的内部简称。
 - 新建文档路径不得含空格、`#`、`%` 或括号；复制模板后改成具体主题名。状态和版本写在正文，不把它们写进稳定知识的文件名。
 - 整页归档到 `archive/<原相对路径>`，保持文件名与目录；目标已存在时停止，不覆盖。用 `python3 scripts/wiki/wiki.py archive <路径> --root .` 预览，再加 `--apply --expect <plan_sha256>` 执行，不手工移动文件和改链接。新建前检查对应历史，命中后判断恢复、延续或新主题，不把同名历史当作永久禁名。
@@ -15,4 +16,16 @@
 - 按 ProjectWiki 接入指南安装 Git 钩子后，每次提交都会运行文档提醒，配置在 `docs/wiki.json` 的 `remind`。单次 `docs-not-updated` 是 `[info]` 提示，未达累计阈值时不要求复核或写 trailer；已知正文失实时仍须当次更新。看到累计复核的 `[agent]` 提醒，核对后更新 `notes/docs/` 或模块入口，或者在提交信息最后一段写 `Docs-Reviewed: notes <理由>`；其他 `[agent]` 提醒按提示处理。看到 `[user]` 提醒，先向用户确认需求或决策变更。阈值与处理方式见 `scripts/wiki/reference.md` 的"提交时的文档提醒"。不得用 `--no-verify` 跳过钩子。
 - 改变标题计数等已有决定时，先写新的决策记录替代旧记录，并在同一次改动中更新本文件、项目需求、模块需求与设计、故障维护指南中仍写着旧规则的地方。按链接和关键词（如"码点"）两种方式查找。
 
-更多约定见 [开发规范](docs/standards/development.md)。接续已有工作才需要读 [开发入口](dev/INDEX.md)。
+按本项目的实际任务读取技能，不把它们作为每次任务或提交的必做步骤；按路径读取不代表宿主已原生安装技能。
+
+| 任务 | 本地技能路径 |
+|---|---|
+| 补齐未完成的 ProjectWiki 接入 | `scripts/wiki/skills/adopt-projectwiki/SKILL.md` |
+| 对照实现审查指定文档 | `scripts/wiki/skills/review-docs/SKILL.md` |
+| 整理指定范围的文档 | `scripts/wiki/skills/organize-docs/SKILL.md` |
+| 把已确认结论写回现行知识 | `scripts/wiki/skills/capture-knowledge/SKILL.md` |
+| 用户要求同步文档并提交、收尾提交 | `scripts/wiki/skills/sync-docs-and-commit/SKILL.md` |
+
+独立复制示例后从本地打开；在 ProjectWiki 仓库中从根目录打开技能，操作对象仍是本次指定的项目。需要模板或完整接入指南时使用已定位的源仓库。
+
+更多约定见 [开发规范](docs/standards/development.md)。接续已有工作或核对执行套件绑定时，先读 [开发入口](dev/INDEX.md)，按声明找到原记录。

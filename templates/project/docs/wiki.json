@@ -31,9 +31,11 @@
   ],
   "exclude": [
     ".git/**",
-    "**/__pycache__/**"
+    "**/__pycache__/**",
+    "scripts/wiki/**"
   ],
   "dir_budgets": {
+    "dev/*": 50,
     "dev/plans": 30,
     "dev/inbox/*": 30,
     "dev/reviews/*": 20
