@@ -25,7 +25,10 @@
 - 统一的规则级别配置，例如 `"rules": {"name-status-or-version": "off"}`：只允许调整默认约定层的规则，写到不变量规则时报错；暂存检查发现配置降低了规则级别时给出 `[user]` 提醒，和 `baseline-grown` 一样。现在每项功能各有一个豁免字段（`orphan_ignore`、`reconcile.ignore`、`status_values`、`baseline`）。
 - 审查的判定词、问题编号格式和需求状态还不能配置；等有已在用其他审查流程或需求状态的真实项目再决定。
 - 需求的证据等级还很粗。`coverage.requirements` 和 `trace-all-manual` 已经让"有没有测试"可见，`verify` 的 `kind` 让记录能区分代码测试和文档检查，但"证据："仍只能链接到整个测试文件，不指向具体测试名或 `verify` 记录；`已实现` 和 `已验证` 实际区别不大。接入项目需要更细的等级：ImageKit 分 JVM 测试关闭和真机关闭，UniverseAgent 规定单元测试不算产品级证据。可以考虑让每个验收条目各自记录证据和等级。
-- 大仓库上 `check` 仍要约 12 秒（UniverseAgent，5493 篇），剩下的是各项检查的线性开销。提交钩子嫌慢时，再考虑暂存检查只查改动文件及其链接目标。
+- 大仓库上 `check` 和 `check --staged` 各要 5 到 6 秒，`remind --staged` 要约 15 秒（UniverseAgent，约 4,900 篇），剩下的是各项检查和历史扫描的线性开销。提交钩子嫌慢时，再考虑暂存检查只查改动文件及其链接目标、提交时只算和本次改动有关的提醒。
+- 指向符号链接目录背后的链接按 `broken-link` 报告，项目把符号链接写进 `exclude` 后才改为计数。UniverseAgent 有 29 个符号链接、4,161 条这样的链接。需要决定是否像没初始化的子模块那样，默认只给一条警告并计数。
+- 项目根以内的文件符号链接，工作区检查会读它指向的内容，暂存检查不读（报 `unreadable`），两种检查的结论不同。先看真实项目里这种链接多不多，再决定是工作区检查也不读，还是暂存检查按链接目标到索引里取内容。
+- `index` 遇到读不出来的文档仍然整个中断；`check` 已经改成每篇报告一条 `unreadable`。
 - `archive --apply` 只在 `OSError` 和 `WikiError` 时回滚；按 Ctrl-C 中断不会回滚，项目根下的暂存目录 `.wiki-archive-*` 会留下，而且根目录和模板的 `.gitignore` 都没有忽略它。`move --apply` 复用同一套回滚，有同样的问题。
 - `remind` 的 `hooks-not-installed` 只对能按 ProjectWiki 钩子识别的钩子目录判断；其他钩子管理器（husky、pre-commit 框架等）即使没接上 `wiki.py` 也判不出，只能靠 `doctor` 的 `hook-coverage` 说明。真实项目用上其他钩子管理器后，看是否需要识别常见管理器的配置。
 - `page-oversized`、`line-oversized` 的默认阈值（10 万字符、1 万字符）按三个真实项目的数据定，正常项目不报、只命中滚动登记表和状态历史。更多项目接入后复核这两个默认值，必要时调整。

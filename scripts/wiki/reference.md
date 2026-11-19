@@ -71,13 +71,15 @@
 - `modules` 登记模块路径和入口；小模块可以只有 README，省略 `docs` 字段。已有模块文档目录时再登记 `docs`。工具会发现未登记且未明确排除的 `docs/` 目录，独立前端或其他语言模块也需要登记。
 - `pages` 为特定文件补充角色和字符预算。可选 `id` 与 `scope` 用于检查当前文档的身份冲突。省略 scope 时，模块内按模块归属，其余按项目归属；历史版本可以保留相同逻辑 ID。历史豁免按已登记历史根的路径判断，当前文件不能只把页面角色写成 `archive` 来降低检查级别。
 - `exclude` 控制检查范围；它与给日常检索使用的 `.ignore` 是两套不同用途的规则。不要用检查排除规则把整个历史目录排除，否则无法核对历史链接。
-- 工作区检查自动跳过 Git 忽略的未跟踪文件和目录，例如 Gradle 的 `build/` 和 `.gradle/`，这类目录不必再写进 `exclude`。已跟踪的文件不受忽略规则影响。链接指向被忽略的未跟踪文件时按目标不存在处理，因为其他克隆里没有这个文件。项目根不在 Git 工作区里、没有 Git 或项目根本身被忽略时，工具读取全部文件，报告的 `coverage.git_ignored` 写 `not-applied`；跳过时写 `git-ignored-skipped`，暂存检查写 `index`。
+- 链接指向 `exclude` 里的路径时，看这个路径在被检查的快照里有没有文件：有文件，照常检查目标是否存在；一个文件都没有（只在本机检出的目录、构建产物、被排除的符号链接），目标无从核对，不报断链，报告的 `coverage.excluded_links` 按路径写出没检查的链接数，文本输出里是 `Links not checked` 一行。工作区检查和暂存检查在这一点上结果相同。
+- 工作区检查自动跳过 Git 忽略的未跟踪文件和目录，例如 Gradle 的 `build/` 和 `.gradle/`，这类目录不必再写进 `exclude`。已跟踪的文件不受忽略规则影响。链接指向被忽略的未跟踪文件时按目标不存在处理，因为其他克隆里没有这个文件；工作区检查的消息会写明它只在本机存在。确实要保留这类链接时，把所在目录写进 `exclude`，按上一条计数。项目根不在 Git 工作区里、没有 Git 或项目根本身被忽略时，工具读取全部文件，报告的 `coverage.git_ignored` 写 `not-applied`；跳过时写 `git-ignored-skipped`，暂存检查写 `index`。
+- 检查不进入符号链接目录，也不读指向项目根以外的符号链接；暂存检查任何符号链接都不读，索引里只有链接本身。文档本身是符号链接时，每篇报告一条 `unreadable`，其余文档照常检查；链接目标或登记的必需路径在符号链接目录的背后时，`broken-link`、`missing-entry` 的消息写出是哪个符号链接。处理办法有两种：内容在别处维护的，把符号链接写进 `exclude`，文档写它自己的路径，目录写 `路径/**`，指向它和它背后的链接按上面的规则计入 `coverage.excluded_links`；内容属于本仓库的，换成普通文件。
 
 文档正文不要求 frontmatter，也不禁止操作指南使用复选框。
 
 计划和决策记录在一级标题下第一行写状态，状态值归入 draft、active、blocked、current、finished、superseded、retired、open 几类；写法和默认值见[状态行](formats.md#计划决策记录和待处理项的状态行)。项目自己的状态值用 `status_values` 补充，例如 `"status_values": {"评审中": "draft"}`。计划默认是 `dev/plans/*`、审查目录的 `dev/reviews/*/README.md` 和 `dev/reviews/*/plan-*.md`，决策记录默认是 `docs/decisions/*` 与 `*/docs/decisions/*`，待处理项默认是 `dev/inbox/*/*.md`，可用 `remind.plans`、`remind.decisions`、`remind.inbox` 修改。
 
-- 入口页链接到状态为 superseded 或 retired 的文档时报错 `links-replaced-document`；其他现行页面这样链接时只警告。决策记录互相引用不算，归档目录里的文档按历史处理。
+- 入口页链接到状态为 superseded 或 retired 的文档时报错 `links-replaced-document`；其他现行页面这样链接时只警告。决策记录互相引用不算，归档目录里的文档按历史处理，角色是 `generated` 的页面（例如工具生成的目录页）不提醒。
 - 计划或决策记录缺少状态行时警告 `status-missing`，状态值无法识别时警告 `status-unknown`。
 - 计划状态是"阻塞"但状态行里没写原因时警告 `plan-blocked-no-reason`。阻塞要写明在等什么，格式见[原因](formats.md#计划决策记录和待处理项的状态行)：`状态：阻塞。原因：等待 X 的接口评审。`。接入起点之前的旧文件不报，和 `plan-no-status` 一致。
 - 计划状态是"当前有效"时警告 `plan-status-current`。"当前有效"是决策记录的状态，计划描述一项会结束的工作：已完成的写"已完成"，被取代的写"被替代"；工作已落地、页面仍在描述现行行为时，把长期内容写回 `docs/` 再归档计划。frontmatter 经 `status_values` 映射成 current 的也报。接入起点之前的旧文件不报。
@@ -302,8 +304,8 @@ python3 scripts/wiki/wiki.py baseline --root . > docs/wiki-baseline.json
 当前支持：
 
 - 必需入口、模块入口、登记目录与未登记的 `docs/` 目录。
-- 常见内联链接、引用式链接和图片路径。相对路径只按当前文档位置解析，不回退到仓库根目录。脚注定义 `[^名称]: …` 不算引用式链接定义，脚注正文里的链接照常检查。
-- 路径大小写、ATX 标题锚点、重复标题后缀、显式 HTML `id` 或 `name` 锚点。
+- 常见内联链接、引用式链接和图片路径。相对路径只按当前文档位置解析，不回退到仓库根目录。脚注定义 `[^名称]: …` 不算引用式链接定义，脚注正文里的链接照常检查。并排的两对方括号 `[甲][乙]` 只在页面定义了引用式链接时按引用式链接处理；页面里没有任何定义时它是普通文字，例如下标 `m[i][j]` 和并排的标签，以 `^` 开头的名称一律是脚注。
+- 路径大小写、ATX 标题锚点、重复标题后缀、标题末尾写的 `{#编号}`、显式 HTML `id` 或 `name` 锚点。
 - `AGENTS.md`、`CLAUDE.md` 中独立一行的 `@相对路径` 导入。其他宿主语法不在覆盖范围内。
 - 页面总字符数，包括长行、表格和代码块。
 - 同一作用域下重复的当前文档 ID。
@@ -314,22 +316,23 @@ python3 scripts/wiki/wiki.py baseline --root . > docs/wiki-baseline.json
 
 | 规则 | 含义 |
 |---|---|
-| `missing-entry` | 必需入口、模块入口或登记目录不存在 |
+| `missing-entry` | 必需入口、模块入口或登记目录不存在。路径在符号链接目录的背后时，消息写出是哪个符号链接；这段说明不进基线指纹 |
 | `required-excluded` | 必需路径被 `exclude` 排除了 |
 | `unregistered-docs` | 发现了未登记、也未排除的 `docs/` 目录 |
 | `unregistered-markdown` | 警告：有 Markdown 文件不在任何登记的根、模块、页面或入口里，`check` 不读它们。报告的 `coverage.unregistered_markdown` 写出数量和前 20 个路径。登记它们所在的目录，或者排除 |
-| `broken-link` | 链接目标不存在，或大小写不一致。多写或少写一层 `../` 就能打开时，消息里写出改后的链接；这条提示不进基线指纹 |
+| `broken-link` | 链接目标不存在，或大小写不一致。多写或少写一层 `../` 就能打开时，消息里写出改后的链接；目标在符号链接目录的背后，或只在本机存在（被 Git 忽略）时，消息里写出原因和处理办法。这些提示都不进基线指纹 |
 | `broken-anchor` | 目标文件里没有这个锚点 |
-| `missing-reference` | 引用式链接没有对应的定义 |
+| `missing-reference` | 页面定义了引用式链接，但 `[文字][名称]` 用到的名称没有定义。没有任何定义的页面不报告 |
 | `unsupported-link` | 本机绝对路径、以 `/` 开头的路径，或越出项目根且不在任何登记仓库里的相对路径。消息里同样写出能打开的改法，或者提示登记仓库 |
 | `repo-not-checked-out` | 警告：登记的相邻仓库或没初始化的子模块读不到，指向它的链接没有检查。消息写出链接数量 |
 | `unsupported-import` | `AGENTS.md`、`CLAUDE.md` 里的 `@` 导入不是本地路径 |
-| `unreadable-target` | 链接目标存在但读不出来，例如不是 UTF-8 |
+| `unreadable-target` | 链接带锚点，目标存在但读不出来，例如不是 UTF-8，或是符号链接；是符号链接时消息写出处理办法 |
 | `page-budget` | 页面超出登记的字符预算 |
 | `duplicate-current-id` | 同一作用域里两篇现行文档登记了相同 ID |
 | `name-case-collision` | 同一目录中有只差大小写的 Markdown 文件名 |
+| `watch-path-dead` | 警告：`remind.watch` 里的模式匹配不到任何文件，路径搬走了或写错了。文档模式一律报告。代码模式常按文件类型成组列出，某一类暂时没有文件不算：不含通配符的路径不存在时报告，含通配符的模式只在该组所有代码模式都匹配不到时报告。改成现在的路径，或者删掉这个模式 |
 
-除特别说明外，现行文档上是错误，归档文档上降为警告。文档本身读不出来时报告 `unreadable`。
+除特别说明外，现行文档上是错误，归档文档上降为警告。文档本身读不出来时（是符号链接，或不是 UTF-8）每篇报告一条 `unreadable`，其余文档照常检查，需要读正文的规则不再判断这篇文档。读不出来的是需求文件或审查目录里的文件时，检查报告 incomplete，因为需求和审查要整体核对。
 
 另有两条警告，用来发现越积越多却没人能找到的文件：
 
@@ -352,7 +355,7 @@ python3 scripts/wiki/wiki.py baseline --root . > docs/wiki-baseline.json
 
 登记了相邻仓库（`repos`）时，暂存检查还读这些仓库在检查开始时的 HEAD 提交，不读它们的工作区，见[相邻仓库和子模块](#相邻仓库和子模块)。
 
-已经提交过配置后，没有 Git 仓库、存在未合并索引项、配置没有暂存或必需输入无法读取时，命令返回 `incomplete` 和非零退出码。它不会退回工作区继续检查。子模块内部文档或其他不支持的文件模式也不会冒充已经验证。
+已经提交过配置后，没有 Git 仓库、存在未合并索引项、配置没有暂存或必需输入无法读取时，命令返回 `incomplete` 和非零退出码。它不会退回工作区继续检查。子模块内部文档或其他不支持的文件模式也不会冒充已经验证：符号链接在索引里只有链接本身，暂存检查不读它指向的内容，是文档时报告 `unreadable`。
 
 报告包含输入快照、工具版本、配置哈希、覆盖目录和未检查事项。暂存快照使用索引清单的 SHA-256 标识；这不是 Git commit 或 tree ID。工作区检查标明 `working-tree`，用于编辑反馈，不声称工作区是原子快照。
 
@@ -445,7 +448,7 @@ python3 scripts/wiki/wiki.py move dev/decisions/engine.md docs/decisions/engine.
 
 `index` 输出包含当前和历史页的全量机器目录，每条记录标注 `role`。生成当前知识导航或默认检索集合时，调用方应过滤历史角色。`check-new`、`archive`、`index`、`doctor`、`verify` 使用工作区；`check --staged` 和 `remind --staged` 使用暂存快照，输出会明确标识这一区别。`remind --staged` 的行数从捕获的索引和 HEAD 内容计算，可能与实时 `git diff --numstat` 在二进制文件或特殊换行上略有差异。
 
-`doctor` 检查配置、明确的根历史忽略规则，以及当前 Git 钩子目录中的 ProjectWiki 钩子；其他钩子管理器和构建任务报告为 `unknown`，并给出 `hook-coverage` 说明。`.ignore` 没有排除已登记的历史根时报告 `archive-default-search`，钩子缺失或没有调用对应命令时报告 `hook-not-installed`，配置里没有 `remind` 时报告 `remind-not-configured`。`remind` 命令在同样情况下给出这条警告，退出码为 0。普通 `rg` 可以遵守 `.ignore`；任意 `grep`、`git grep` 或显式文件读取不受这项规则保证。这里的忽略是默认降噪，不是访问限制。
+`doctor` 检查配置、明确的根历史忽略规则，以及当前 Git 钩子目录中的三个 ProjectWiki 钩子（pre-commit、pre-merge-commit、commit-msg）；其他钩子管理器和构建任务报告为 `unknown`，并给出 `hook-coverage` 说明。`.ignore` 没有排除已登记的历史根时报告 `archive-default-search`，钩子缺失或没有调用对应命令时报告 `hook-not-installed`，配置里没有 `remind` 时报告 `remind-not-configured`。`remind` 命令在同样情况下给出这条警告，退出码为 0。普通 `rg` 可以遵守 `.ignore`；任意 `grep`、`git grep` 或显式文件读取不受这项规则保证。这里的忽略是默认降噪，不是访问限制。
 
 ## 提交时的文档提醒
 
@@ -464,7 +467,7 @@ python3 scripts/wiki/wiki.py move dev/decisions/engine.md docs/decisions/engine.
 }
 ```
 
-- `watch`：一组代码路径和对应文档。模式用 `fnmatch` 语法，`*` 可以跨目录。规则、模板和示例需要同步的项目可以再登记一组观察项，例如代码为 `docs/design/*`、`docs/principles/*`，文档为 `templates/*`、`demo/*` 和入口摘要。
+- `watch`：一组代码路径和对应文档。模式用 `fnmatch` 语法，`*` 可以跨目录。规则、模板和示例需要同步的项目可以再登记一组观察项，例如代码为 `docs/design/*`、`docs/principles/*`，文档为 `templates/*`、`demo/*` 和入口摘要。模式匹配不到任何文件时，`check` 给出 `watch-path-dead`，见[检查内容和边界](#检查内容和边界)。
 - `threshold`：从上次更新或复核这些文档以来，累计提交次数或改动行数达到任一值时，要求核对文档。核对后更新正文，或用带理由的复核 trailer 清零；这条提醒本身不阻断提交。
 - `block_at`：可选。累计量达到这个值后，新的提交如果继续改代码、又没有更新或复核文档，就会失败。不配置时永远只提醒。
 - `ask_user`：改动这些文件时，提醒 Agent 先向用户确认，除非用户已经要求这项修改。
@@ -477,11 +480,13 @@ python3 scripts/wiki/wiki.py move dev/decisions/engine.md docs/decisions/engine.
 
 接入提交是例外。第一次把配置文件（`docs/wiki.json`，或命令行指定的配置）加入仓库的提交算接入提交；取最早的一个（`git log --diff-filter=A`）。配置了 `adopted_at` 时，它指向的提交也算接入提交。接入提交往往改到几乎每个组的文档，又一次性引入已有代码，所以它改文档不让该组清零，它改代码也不计入累计量；只有提交信息里 `Docs-Reviewed` 写了该组名才清零。扫描继续向更早的提交回溯，接入之前累计的欠账照常算。配置从没提交过时没有接入提交，行为和过去一样。
 
+文档写好了但从未提交时，历史里没有可以起算的提交。`remind` 不把扫描范围内的代码改动算到这一组头上：累计量为 0，报告的 `watch_status` 里这一组的 `since` 写 `uncommitted docs`，并给出 `[info]` 提示 `docs-uncommitted`；文档提交后从那次提交起算。判断条件有三个：这一组在扫描范围内没有起点，HEAD 里没有文件匹配它的 `docs`，工作区里有。`remind --staged` 只看索引，不给这条提示：文档在本次提交里时按改了文档处理，文档还没暂存时照旧按整个扫描范围计数。
+
 历史遍历包含各分支提交。合并提交按 Git 的 combined 差异判断：只有在所有父提交对应列均标为新增或均标为删除的行才作为合并新增的文本修改；从各父提交继承或拼合的内容不在合并提交重复计数或清零，父提交仍照常遍历。文档还须按完整内容判断是否实质，计划和待处理项的过期天数沿用这一合并判据。二进制或特殊文件类型的合并修改计入提交数、行数为零。重复内容的来源可能无法从提交对象确定；此规则不推断人工解决冲突时的意图。
 
 #### 什么算实质改动
 
-判断一次提交里某个文档的改动是不是"实质"，从提交对象读取改动路径和内容，只对命中某个仍未清零的组的 `docs` 的文件判断；配对移动时还读取可能配对的新增和删除文件；所需对象按提交批量读取，不逐文件启动 Git。`remind --staged` 对比捕获的 HEAD 与索引，历史和暂存使用同一判断规则：内容相同或只改链接、机械字段、状态行的删除和新增配对为纯移动，不清零；先配对完全相同内容，再配对机械改动，内容重复时按路径排序一对一配对。原文件仍在时新增的副本仍算新增。移动跨越观察组边界也按同一方式判断。
+判断一次提交里某个文档的改动是不是"实质"，从提交对象读取改动路径和内容，只对命中某个仍未清零的组的 `docs` 的文件判断；配对移动时还读取同一次提交里新增和删除的 Markdown 文件，其他类型的文件不读内容，只有内容完全相同才算纯移动；所需对象按提交批量读取，不逐文件启动 Git。`remind --staged` 对比捕获的 HEAD 与索引，历史和暂存使用同一判断规则：内容相同或只改链接、机械字段、状态行的删除和新增配对为纯移动，不清零；先配对完全相同内容，再配对机械改动，内容重复时按路径排序一对一配对。原文件仍在时新增的副本仍算新增。移动跨越观察组边界也按同一方式判断。
 
 不算实质（不让该组清零）：
 
@@ -501,7 +506,7 @@ python3 scripts/wiki/wiki.py move dev/decisions/engine.md docs/decisions/engine.
 
 配置里没有 `remind` 时，两条命令都报告警告 `remind-not-configured`，退出码为 0。commit-msg 钩子同样以退出码 0 结束，提交完成。没有 Git 时 `remind` 报告 incomplete，退出码为 2；`remind --staged` 读不到索引时同样为 2。
 
-`remind`（不带 `--staged`）在项目是 Git 工作区时还会检查当前生效的钩子目录里的 ProjectWiki 钩子：pre-commit 或 commit-msg 缺失、不可执行或没有调用对应命令时，给出 `[user]` 警告 `hooks-not-installed`，写明缺哪个钩子，并给两种装法——`git config core.hooksPath scripts/wiki/hooks`，或把 `check --staged` 和 `remind --staged --message-file "$1"` 加进现有钩子（见[安装 Git 钩子](README.md#安装-git-钩子)）。因为改 `git config` 应当由用户决定，这条是 `[user]` 提醒，Agent 不要自己改。它复用 `doctor` 的判断：不是 Git 工作区，或钩子目录无法按 ProjectWiki 钩子识别时，不给这条，避免对其他钩子管理器误报。`remind --staged`（即运行在钩子里时）不检查钩子。退出码仍为 0。
+`remind`（不带 `--staged`）在项目是 Git 工作区时还会检查当前生效的钩子目录里的 ProjectWiki 钩子：pre-commit、pre-merge-commit 或 commit-msg 缺失、不可执行或没有调用对应命令时，给出 `[user]` 警告 `hooks-not-installed`，写明缺哪个钩子和后果（缺 pre-merge-commit 时，没有冲突的合并不经过检查），并给两种装法——`git config core.hooksPath scripts/wiki/hooks`，或把 `check --staged`（pre-commit 和 pre-merge-commit）和 `remind --staged --message-file "$1"`（commit-msg）加进现有钩子（见[安装 Git 钩子](README.md#安装-git-钩子)）。因为改 `git config` 应当由用户决定，这条是 `[user]` 提醒，Agent 不要自己改。它复用 `doctor` 的判断：不是 Git 工作区，或钩子目录无法按 ProjectWiki 钩子识别时，不给这条，避免对其他钩子管理器误报。`remind --staged`（即运行在钩子里时）不检查钩子。退出码仍为 0。
 
 暂存模式在启动时捕获索引和 HEAD 的对象清单，本次改动的文件和行数都从这份清单计算：两边对象 ID 相同的路径不读取内容；符号链接、子模块和二进制文件计为改动的路径，但不计行数。行数用 Python 的 `difflib` 计算，只用于阈值提醒，可能与 `git diff --numstat` 略有差别。
 

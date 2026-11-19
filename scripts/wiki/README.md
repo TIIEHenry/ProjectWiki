@@ -12,10 +12,10 @@
 | 用户要求给指定项目接入 ProjectWiki、补齐未完成的接入 | [接入技能](skills/adopt-projectwiki/SKILL.md) |
 | 写状态行、核对行、需求条目、审查问题或待处理项 | [工具读取的写法](formats.md) |
 | 填写 `docs/wiki.json`，或者查一条规则的含义和级别 | [配置与规则](reference.md)。这份是登记表，按规则名或字段名搜索，只读命中的小节，例如 `rg -n 'trace-no-test' scripts/wiki/reference.md` |
-| 执行开发流程（需求到验证的顺序、决定变化时同步文档、审查分工、什么时候归档） | [开发流程规则](workflow.md) |
+| 执行开发流程（需求到验证的顺序、决定变化时同步文档、排障经验写到哪里、审查分工、什么时候归档） | [开发流程规则](workflow.md) |
 | 对照实现检查指定文档的准确性与遗漏 | [文档审查技能](skills/review-docs/SKILL.md) |
 | 整理指定范围内的重复、失实或已结束文档 | [文档整理技能](skills/organize-docs/SKILL.md) |
-| 把已确认的结论写回当前项目知识 | [知识沉淀技能](skills/capture-knowledge/SKILL.md) |
+| 沉淀开发经验、排障技巧或已确认结论 | [知识沉淀技能](skills/capture-knowledge/SKILL.md) |
 | 用户要求同步文档并提交、收尾提交 | [同步文档与提交技能](skills/sync-docs-and-commit/SKILL.md) |
 
 ## 常用命令
@@ -60,22 +60,22 @@ python3 scripts/wiki/wiki.py export-okf --root . --out /tmp/project-okf
 
 ## 安装 Git 钩子
 
-`hooks/pre-commit` 运行 `check --staged`，`hooks/commit-msg` 运行 `remind --staged`。项目没有其他钩子时，每个 clone 执行一次：
+`hooks/pre-commit` 和 `hooks/pre-merge-commit` 运行 `check --staged`，`hooks/commit-msg` 运行 `remind --staged`。没有冲突的合并由 Git 直接生成合并提交，这时 Git 只运行 pre-merge-commit（Git 2.24 起），不运行 pre-commit，所以两个都要装。项目没有其他钩子时，每个 clone 执行一次：
 
 ```bash
 git config core.hooksPath scripts/wiki/hooks
 ```
 
-已经使用 husky、pre-commit 等钩子工具时，不要覆盖它们的配置，把下面两条命令加进现有的 pre-commit 与 commit-msg 钩子：
+已经使用 husky、pre-commit 等钩子工具时，不要覆盖它们的配置，把下面第一条命令加进现有的 pre-commit 和 pre-merge-commit 钩子，第二条加进 commit-msg 钩子：
 
 ```bash
 python3 scripts/wiki/wiki.py check --staged --root .
 python3 scripts/wiki/wiki.py remind --staged --message-file "$1" --root .
 ```
 
-钩子默认把仓库顶层作为项目根。项目根是子目录时设置 `WIKI_ROOT`；Python 不叫 `python3` 时设置 `PYTHON`。`doctor` 会检查当前生效的钩子目录里这两个钩子是否存在、可执行并调用了对应命令。它检查不了其他钩子管理器，也无法阻止 `git commit --no-verify`，所以 Agent 规则里要写明不要跳过钩子。
+钩子默认把仓库顶层作为项目根。项目根是子目录时设置 `WIKI_ROOT`；Python 不叫 `python3` 时设置 `PYTHON`。`doctor` 会检查当前生效的钩子目录里这三个钩子是否存在、可执行并调用了对应命令。它检查不了其他钩子管理器，也无法阻止 `git commit --no-verify`，所以 Agent 规则里要写明不要跳过钩子。
 
-在 Git 工作区里运行 `remind`（不带 `--staged`）也会列出未生效的这两个钩子，提醒按上面的某一种方式装好。配置（`docs/wiki.json`）还没提交时，`check --staged` 和 `remind --staged` 只报 `config-not-committed` 警告、不执行检查、退出码为 0，所以可以把配置和钩子放进同一个接入提交。
+在 Git 工作区里运行 `remind`（不带 `--staged`）也会列出未生效的钩子，提醒按上面的某一种方式装好。配置（`docs/wiki.json`）还没提交时，`check --staged` 和 `remind --staged` 只报 `config-not-committed` 警告、不执行检查、退出码为 0，所以可以把配置和钩子放进同一个接入提交。
 
 配置里还没有 `remind` 时，commit-msg 输出警告 `remind-not-configured`，提交成功。写好配置后的阈值和退出码见[提交时的文档提醒](reference.md#提交时的文档提醒)。
 

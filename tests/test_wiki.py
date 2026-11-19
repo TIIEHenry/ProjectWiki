@@ -126,7 +126,7 @@ class WikiTests(ProjectFixture):
         self.write("docs/diagram.svg", "<svg/>")
         code, report = self.run_cli("check")
         self.assertEqual(code, 0, report)
-        self.write("docs/topic.md", "# Topic\n[Missing][not-defined]\n")
+        self.write("docs/topic.md", "# Topic\n[Missing][not-defined]\n[Index][index]\n\n[index]: INDEX.md\n")
         code, report = self.run_cli("check")
         self.assertEqual(code, 1)
         self.assertIn("missing-reference", self.rules(report))
@@ -910,7 +910,7 @@ class RemindTests(ProjectFixture):
         """PW-11.6"""
         self.install_hooks()
         code, report = self.run_cli("doctor")
-        self.assertEqual(report["git_hooks"], {"pre-commit": "installed", "commit-msg": "installed"})
+        self.assertEqual(report["git_hooks"], {"pre-commit": "installed", "pre-merge-commit": "installed", "commit-msg": "installed"})
         self.write("docs/INDEX.md", "# Current\n\n[Missing](missing.md)\n")
         self.git("add", "docs/INDEX.md")
         result = self.commit("Break a link", verify=True)

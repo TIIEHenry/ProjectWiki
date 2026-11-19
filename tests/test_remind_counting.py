@@ -557,6 +557,45 @@ class RemindCountingTests(ProjectFixture):
             self.assertEqual(wiki.substantial_paths_in_commit(self.root, move, {"notes/docs/batch-0.md", "notes/docs/moved.md"}, False), set())
             self.assertEqual(batch_inputs, [])
 
+    def test_move_pairing_reads_only_markdown_blobs(self):
+        """PW-42.17: other files added or removed beside a moved page are not read."""
+        from unittest.mock import patch
+        self.write("notes/docs/design.md", "# Design\n\nSee [count](old.md).\n")
+        (self.root / "notes/lib").mkdir()
+        (self.root / "notes/lib/old.bin").write_bytes(b"\0old library\0" * 64)
+        self.adopt()
+        self.change_code(1)
+        self.commit("Drift")
+        self.git("mv", "notes/docs/design.md", "notes/docs/moved.md")
+        self.write("notes/docs/moved.md", "# Design\n\nSee [count](new.md).\n")
+        self.git("rm", "-q", "notes/lib/old.bin")
+        (self.root / "notes/lib").mkdir(exist_ok=True)
+        (self.root / "notes/lib/new.bin").write_bytes(b"\0new library\0" * 64)
+        self.add("notes/docs/moved.md", "notes/lib/new.bin")
+        paths = {"notes/docs/design.md", "notes/docs/moved.md"}
+        snap = wiki.Snapshot(self.root, staged=True)
+        with patch.object(snap, "head_read", wraps=snap.head_read) as read_head:
+            with patch.object(snap, "read", wraps=snap.read) as read_index:
+                self.assertEqual(wiki.staged_substantial_paths(snap, paths, False), set())
+        self.assertEqual([call.args for call in read_head.call_args_list], [("notes/docs/design.md",)])
+        self.assertEqual([call.args for call in read_index.call_args_list], [("notes/docs/moved.md",)])
+        self.assertEqual(self.watch(self.run_cli("remind", "--staged")[1])["notes"]["commits"], 1)
+        binaries = [self.git("rev-parse", "HEAD:notes/lib/old.bin").encode(),
+                    self.git("rev-parse", ":notes/lib/new.bin").encode()]
+        commit = self.commit("Move the page and replace the library")
+        original = wiki.subprocess.run
+        batch_inputs = []
+        def counting(args, *a, **kw):
+            if "cat-file" in args:
+                batch_inputs.append(kw.get("input", b""))
+            return original(args, *a, **kw)
+        with patch.object(wiki.subprocess, "run", side_effect=counting):
+            self.assertEqual(wiki.substantial_paths_in_commit(self.root, commit, paths, False), set())
+        self.assertEqual(len(batch_inputs), 1)
+        for blob in binaries:
+            self.assertNotIn(blob, batch_inputs[0])
+        self.assertEqual(self.watch(self.run_cli("remind")[1])["notes"]["commits"], 1)
+
     def test_staged_copy_is_not_a_move_and_snapshot_is_immutable(self):
         """PW-42.9: a copy resets, and later index changes do not alter a snapshot."""
         self.adopt()

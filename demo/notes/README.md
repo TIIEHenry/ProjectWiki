@@ -8,5 +8,6 @@
 | 修改职责或字符计数方式 | [设计](docs/design.md) |
 | 确认当前实现 | [normalize_title](src/title.py) |
 | 复现边界或验证修改 | [测试](tests/test_title.py) |
+| 排查空标题或看似未超限的标题报错 | [标题维护指南](../docs/guides/maintenance.md) |
 
 全局约束见 [产品与设计原则](../docs/principles/product.md)。标题超限时必须报错，不允许静默截断。

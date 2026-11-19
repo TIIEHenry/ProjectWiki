@@ -129,7 +129,7 @@ python3 scripts/wiki/wiki.py check-new docs/design/new-topic.md --root .
 python3 scripts/wiki/wiki.py check --root . --staged
 ```
 
-项目没有其他钩子时，复制 `scripts/wiki/hooks/` 并在每个 clone 执行一次 `git config core.hooksPath scripts/wiki/hooks`。已有钩子工具时，把 `check --staged` 加进现有 pre-commit、`remind --staged --message-file "$1"` 加进现有 commit-msg，不要覆盖原有配置。仓库里存在脚本不代表当前工作副本已经启用，运行 `doctor` 查看 `git_hooks` 的结果。配置里还没有 `remind` 时，commit-msg 输出警告 `remind-not-configured`，这次提交成功；阈值和拦截要等第 8 步写好 `remind` 才生效，见[提交时的文档提醒](../../scripts/wiki/reference.md#提交时的文档提醒)。
+项目没有其他钩子时，复制 `scripts/wiki/hooks/` 并在每个 clone 执行一次 `git config core.hooksPath scripts/wiki/hooks`。已有钩子工具时，把 `check --staged` 加进现有 pre-commit 和 pre-merge-commit、`remind --staged --message-file "$1"` 加进现有 commit-msg，不要覆盖原有配置。pre-merge-commit 管没有冲突、由 Git 直接生成合并提交的合并，这种合并不运行 pre-commit。仓库里存在脚本不代表当前工作副本已经启用，运行 `doctor` 查看 `git_hooks` 的结果。配置里还没有 `remind` 时，commit-msg 输出警告 `remind-not-configured`，这次提交成功；阈值和拦截要等第 8 步写好 `remind` 才生效，见[提交时的文档提醒](../../scripts/wiki/reference.md#提交时的文档提醒)。
 
 退出码 `0` 表示本次检查没有错误，可能仍有警告；`1` 表示发现错误；`2` 表示输入或执行条件不完整。钩子须将 `1` 和 `2` 都视为失败。没有 Git 仓库时只能运行工作区检查，不能据此报告提交门禁已通过。
 
@@ -189,7 +189,7 @@ python3 scripts/wiki/wiki.py check --root . --staged
 - 普通查询优先得到当前文档，历史仍可按需检索。
 - 现行知识能够原位维护，完成计划能按原路径归档。
 - 新建检查、真实暂存检查及独立模块检查有实际运行结果。
-- 提交只改代码时能看到文档提醒，`doctor` 显示两个 Git 钩子已安装。
+- 提交只改代码时能看到文档提醒，`doctor` 显示三个 Git 钩子已安装。
 - 一项未改变文档所述契约、未达累计复核阈值的普通修复，只提交代码和测试，不更新状态页、不新增计划、不补复核 trailer，也能通过钩子。
 - 文档开发流程已按共享基线迁移；旧流程中逐任务、逐提交的要求已逐条核对，重复或冲突已同步修改原入口与读取方，必要例外符合[共享流程与项目适配](../../scripts/wiki/workflow.md#共享流程与项目适配)。
 - 同时使用执行套件时，根 `AGENTS.md` 能找到开发入口中的项目绑定；实际消费者沿绑定找到任务、执行记录、待处理项、验证和归档约定，没有另一套仍强制执行的默认路径。只核对文档而未运行套件时，明确记录此限制。

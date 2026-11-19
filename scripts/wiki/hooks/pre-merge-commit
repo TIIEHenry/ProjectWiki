@@ -1,0 +1,10 @@
+#!/bin/sh
+# ProjectWiki: stop a merge when the merged documents fail deterministic checks.
+# When a merge finishes without conflicts and Git creates the merge commit itself,
+# Git runs this hook and not pre-commit (Git 2.24 or later). A merge that stopped
+# for conflicts is committed with git commit, which runs pre-commit.
+# WIKI_ROOT selects a project root other than the repository top level.
+# Use the same interpreter variable name as the other hooks.
+hook_dir=$(cd "$(dirname "$0")" && pwd)
+top=$(git rev-parse --show-toplevel) || exit 1
+exec "${PYTHON:-python3}" "$hook_dir/../wiki.py" check --staged --root "${WIKI_ROOT:-$top}"

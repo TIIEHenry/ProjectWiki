@@ -23,7 +23,7 @@
 | 补齐未完成的 ProjectWiki 接入 | `scripts/wiki/skills/adopt-projectwiki/SKILL.md` |
 | 对照实现审查指定文档 | `scripts/wiki/skills/review-docs/SKILL.md` |
 | 整理指定范围的文档 | `scripts/wiki/skills/organize-docs/SKILL.md` |
-| 把已确认结论写回现行知识 | `scripts/wiki/skills/capture-knowledge/SKILL.md` |
+| 沉淀开发经验、排障技巧或已确认结论 | `scripts/wiki/skills/capture-knowledge/SKILL.md` |
 | 用户要求同步文档并提交、收尾提交 | `scripts/wiki/skills/sync-docs-and-commit/SKILL.md` |
 
 独立复制示例后从本地打开；在 ProjectWiki 仓库中从根目录打开技能，操作对象仍是本次指定的项目。需要模板或完整接入指南时使用已定位的源仓库。

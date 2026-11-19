@@ -10,7 +10,7 @@
 - 涉及某模块时，先读该模块入口和适用契约，再核对实现与验证方式。
 - 【待填：会持续变长的登记表，例如 `dev/progress/deferred-gaps.md`】按编号或关键词搜索，只读命中的行，不整篇读入。
 - 状态行、核对行、需求条目、审查问题和待处理项的写法，以及需求编号和审查路号怎样分配，以 `scripts/wiki/formats.md` 为准；配置和规则名按名称在 `scripts/wiki/reference.md` 里搜索，不整篇读。
-- 开发流程规则——需求到验证的顺序、决定或设计变化时同步哪些文档、审查怎么分工、什么时候归档——以 `scripts/wiki/workflow.md` 为准，看那里，不在本文件重抄。本文件只保留忽略后会直接出错的硬规则。
+- 开发流程规则——需求到验证的顺序、决定或设计变化时同步哪些文档、排障经验写到哪里、审查怎么分工、什么时候归档——以 `scripts/wiki/workflow.md` 为准，看那里，不在本文件重抄。本文件只保留忽略后会直接出错的硬规则。
 - 核对人、作者、负责人、签收人写成 `human:<名字>` 或 `agent:<名字>`。Agent 只能把自己写成 `agent:`，不得写成 `human:`；配置了 `remind` 并安装钩子后，提交里新增 `human:` 名字会出现 `[user]` 提醒。知识页核对后在标题下写 `核对：agent:<名字>，YYYY-MM-DD。`，会过期的页面同时写 `复核期限：YYYY-MM-DD。`。
 - 一次正式审查放在与 `reviews` 配置匹配的具体目录，本模板默认 `dev/reviews/<开始日期>-<主题>/`，每一路一个文件，每条问题一个小节；核对、方案和签收写进问题小节，复查在核对表里追加一行，不新建文件。核对人不能是作者。路号由负责汇总的人分配。能写成已有文件里的一节，就不新建文件。
 - AI 工具或技能生成的计划、报告、调研和草稿放进 `dev/`，不能写进 `docs/`；工具默认写到 `docs/` 时先改配置或生成后移走。
@@ -32,7 +32,7 @@
 | 补齐未完成的 ProjectWiki 接入 | `scripts/wiki/skills/adopt-projectwiki/SKILL.md` |
 | 对照实现审查指定文档 | `scripts/wiki/skills/review-docs/SKILL.md` |
 | 整理指定范围的文档 | `scripts/wiki/skills/organize-docs/SKILL.md` |
-| 把已确认结论写回现行知识 | `scripts/wiki/skills/capture-knowledge/SKILL.md` |
+| 沉淀开发经验、排障技巧或已确认结论 | `scripts/wiki/skills/capture-knowledge/SKILL.md` |
 | 用户要求同步文档并提交、收尾提交 | `scripts/wiki/skills/sync-docs-and-commit/SKILL.md` |
 
 需要模板或完整接入指南时使用本次任务已定位的 ProjectWiki 源仓库。

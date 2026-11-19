@@ -1,5 +1,6 @@
 """PW-41: remind reports ineffective hooks, staged checks skip uncommitted config,
-and Docs-Reviewed with an unknown watch group warns.
+and Docs-Reviewed with an unknown watch group warns. PW-11.14: the merge hook checks
+a merge that Git commits by itself.
 
 Each test builds a temporary Git repository, so the whole module needs Git.
 """
@@ -7,6 +8,7 @@ Each test builds a temporary Git repository, so the whole module needs Git.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import unittest
@@ -57,6 +59,18 @@ class RemindHookFixture(ProjectFixture):
         self.commit("Initial project", all_files=True)
         self.git("config", "core.hooksPath", hooks_path)
 
+    def write_own_hooks(self, *names):
+        """A project that drives the tool through its own hooks directory."""
+        commands = {"pre-commit": "check --staged", "pre-merge-commit": "check --staged",
+                    "commit-msg": "remind --staged --message-file \"$1\""}
+        githooks = self.root / ".githooks"
+        githooks.mkdir()
+        for name in names:
+            hook = githooks / name
+            hook.write_text("#!/bin/sh\nexec python3 scripts/wiki/wiki.py " + commands[name] + " --root .\n", encoding="utf-8")
+            hook.chmod(0o755)
+        self.git("config", "core.hooksPath", ".githooks")
+
 
 # --- A1: remind flags hooks that are not effective -------------------------------------
 
@@ -67,7 +81,7 @@ class HooksNotInstalledTests(RemindHookFixture):
         code, report = self.run_cli("remind")
         self.assertEqual(code, 0, report)
         hooks = [f for f in report["findings"] if f["rule"] == "hooks-not-installed"]
-        self.assertEqual({f["path"] for f in hooks}, {"pre-commit", "commit-msg"})
+        self.assertEqual(sorted(f["path"] for f in hooks), ["commit-msg", "pre-commit", "pre-merge-commit"])
         for f in hooks:
             self.assertTrue(f["message"].startswith("[user]"), f)
             self.assertIn("core.hooksPath scripts/wiki/hooks", f["message"])
@@ -114,16 +128,72 @@ class HooksNotInstalledTests(RemindHookFixture):
         # A project driving the tool through its own hooks directory: the hooks still call
         # wiki.py with the expected commands, so they read as installed and nothing warns.
         self.commit("Initial project", all_files=True)
-        githooks = self.root / ".githooks"
-        githooks.mkdir()
-        for name, marker in (("pre-commit", "check --staged"), ("commit-msg", "remind --staged --message-file \"$1\"")):
-            hook = githooks / name
-            hook.write_text("#!/bin/sh\nexec python3 scripts/wiki/wiki.py " + marker + " --root .\n", encoding="utf-8")
-            hook.chmod(0o755)
-        self.git("config", "core.hooksPath", ".githooks")
+        self.write_own_hooks("pre-commit", "pre-merge-commit", "commit-msg")
         code, report = self.run_cli("remind")
         self.assertEqual(code, 0, report)
         self.assertNotIn("hooks-not-installed", self.rules(report))
+
+    def test_missing_merge_hook_is_reported_on_its_own(self):
+        """PW-41.1"""
+        # Hooks set up before the merge hook existed: commits are checked, merges are not.
+        self.commit("Initial project", all_files=True)
+        self.write_own_hooks("pre-commit", "commit-msg")
+        code, report = self.run_cli("remind")
+        self.assertEqual(code, 0, report)
+        hooks = [f for f in report["findings"] if f["rule"] == "hooks-not-installed"]
+        self.assertEqual([f["path"] for f in hooks], ["pre-merge-commit"])
+        self.assertTrue(hooks[0]["message"].startswith("[user]"), hooks[0])
+        self.assertIn("merge commits", hooks[0]["message"])
+
+
+# --- A merge that Git commits by itself runs the merge hook ------------------------------
+
+class MergeHookTests(RemindHookFixture):
+    def setUp(self):
+        super().setUp()
+        version = re.search(r"(\d+)\.(\d+)", subprocess.run(["git", "--version"], capture_output=True, text=True).stdout)
+        if not version or (int(version.group(1)), int(version.group(2))) < (2, 24):
+            self.skipTest("Git 2.24 or later is required for pre-merge-commit")
+        self.install_tool_and_hooks()
+        self.trunk = self.git("rev-parse", "--abbrev-ref", "HEAD")
+
+    def diverge(self, design):
+        """A topic branch changes the design page while the trunk changes another file."""
+        self.git("checkout", "-q", "-b", "topic")
+        self.write("notes/docs/design.md", design)
+        self.commit("Change the design page", all_files=True)
+        self.git("checkout", "-q", self.trunk)
+        self.write("tools/build.sh", "#!/bin/sh\n")
+        self.commit("Add a build script", all_files=True)
+
+    def merge(self):
+        return subprocess.run(["git", "-C", str(self.root), "-c", "commit.gpgsign=false", "merge", "--no-edit", "topic"],
+                              capture_output=True, text=True, env={**os.environ, **self.GIT_ENV})
+
+    def parents(self):
+        return len(self.git("rev-list", "--parents", "-n", "1", "HEAD").split()) - 1
+
+    def test_merge_without_conflicts_is_stopped_by_a_broken_link(self):
+        """PW-11.14"""
+        self.diverge("# Design\n\n[Missing](missing.md)\n")
+        result = self.merge()
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0, output)
+        self.assertIn("broken-link", output)
+        self.assertEqual(self.parents(), 1)
+        # Git leaves the merge for git commit to finish, which runs pre-commit and commit-msg.
+        self.write("notes/docs/design.md", "# Design\n\nStable again.\n")
+        self.git("add", "notes/docs/design.md")
+        result = self.commit("Merge topic", verify=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.parents(), 2)
+
+    def test_merge_without_conflicts_passes_when_the_documents_check_clean(self):
+        """PW-11.14"""
+        self.diverge("# Design\n\nStable, with one more sentence.\n")
+        result = self.merge()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.parents(), 2)
 
 
 # --- A2: staged checks skip an uncommitted configuration ---------------------------------

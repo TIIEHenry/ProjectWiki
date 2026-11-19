@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Small, dependency-free checks for a repository's Markdown wiki.
 
-Supported Markdown: inline/reference links, images, ATX headings, explicit HTML
-anchors, and standalone @path imports in AGENTS.md / CLAUDE.md. This is not a
-Markdown renderer or a proof of the prose's correctness.
+Supported Markdown: inline/reference links, images, ATX headings and an ID written
+at their end as {#id}, explicit HTML anchors, and standalone @path imports in
+AGENTS.md / CLAUDE.md. This is not a Markdown renderer or a proof of the prose's
+correctness.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unicodedata
 from dataclasses import asdict, dataclass
@@ -36,16 +38,22 @@ VERSION = "0.1.0"
 DEFAULT_CONFIG = "docs/wiki.json"
 DEFAULT_EXCLUDES = {".git", ".venv", "venv", "node_modules", "__pycache__"}
 REGULAR_FILE_MODES = {"100644", "100755"}
+SYMLINK_MODE = "120000"
+MARKDOWN_SUFFIXES = (".md", ".markdown")
 ROOT_ROLES = {"knowledge", "process", "archive"}
 PAGE_ROLES = ROOT_ROLES | {"entry", "redirect", "reference", "guide", "generated"}
 DEFAULT_DECISION_PATTERNS = ["docs/decisions/*", "*/docs/decisions/*"]
 REVIEW_TRAILER = "Docs-Reviewed"
 HISTORY_SCAN_LIMIT = 2000
+# The "since" value of a watch group whose documents exist but were never committed.
+UNCOMMITTED_DOCS = "uncommitted docs"
 # days_since_commit walks at most this many commits back from HEAD looking for a
 # substantial change to a plan or inbox item (B3). Plans change hands and get touched
 # mechanically far less often than watched code, so a short window keeps the cost low.
 STALE_SCAN_LIMIT = 30
-HOOK_MARKERS = {"pre-commit": "check --staged", "commit-msg": "remind --staged"}
+# Git runs pre-merge-commit, not pre-commit, when a merge without conflicts creates the
+# merge commit itself (Git 2.24 or later).
+HOOK_MARKERS = {"pre-commit": "check --staged", "pre-merge-commit": "check --staged", "commit-msg": "remind --staged"}
 CONFIG_FIELDS = frozenset({
     "version", "project_name", "roots", "archive_root", "modules", "entrypoints", "pages",
     "exclude", "orphan_ignore", "status_values", "status_frontmatter", "adopted_at", "requirements", "verification", "reconcile",
@@ -95,6 +103,8 @@ class Snapshot:
     """Read one namespace; index reads use captured blob IDs, never the worktree."""
 
     def __init__(self, root: Path, staged: bool = False):
+        self._blob_reader: subprocess.Popen | None = None
+        self._blob_lock = threading.Lock()
         self.root = root.resolve()
         self.staged = staged
         self.cache: dict[str, bytes] = {}
@@ -106,6 +116,7 @@ class Snapshot:
         self._submodules: set[str] | None = None
         self._index_files: set[str] = set()
         self._directories: set[str] | None = None
+        self._symlinks: dict[str, bool] = {}
         self.head_oid: str | None = None
         self.head_entries: dict[str, tuple[str, str]] = {}
         self.head_cache: dict[str, bytes] = {}
@@ -269,6 +280,65 @@ class Snapshot:
             return path in self.entries and self.entries[path][0] in REGULAR_FILE_MODES
         return path in self.files() and (self.root / path).is_file()
 
+    def is_symlink(self, path: str) -> bool:
+        """Whether the snapshot holds a symbolic link at exactly this path."""
+        if path not in self._symlinks:
+            self._symlinks[path] = (self.entries.get(path, ("", ""))[0] == SYMLINK_MODE if self.staged
+                                    else (self.root / path).is_symlink())
+        return self._symlinks[path]
+
+    def symlink_above(self, path: str) -> str | None:
+        """The symbolic link that `path` lies behind, or None.
+
+        Git records only where a link points. Neither mode reads files through a link to a
+        directory: the index has a single entry for it, and the working-tree walk does not
+        follow it.
+        """
+        parts = PurePosixPath(path).parts
+        for count in range(1, len(parts)):
+            candidate = "/".join(parts[:count])
+            if self.is_symlink(candidate):
+                return candidate
+        return None
+
+    def symlink_hint(self, path: str) -> str:
+        """What to do about a symbolic link that could not be read; empty for any other path.
+
+        Kept apart from the error text: a baseline identifies an unreadable document by that
+        text, so advice must not become part of it.
+        """
+        if not self.is_symlink(path):
+            return ""
+        detail = "; a staged check reads regular files from the Git index only" if self.staged else ""
+        return (f". The path is a symbolic link{detail}. If its content is maintained elsewhere, list the path under "
+                "exclude in the configuration; otherwise replace the link with a regular file.")
+
+    def behind_symlink_hint(self, path: str) -> str:
+        """Explain a missing link target that lies behind a symbolic link; empty otherwise."""
+        link = self.symlink_above(path)
+        if link is None:
+            return ""
+        return (f" The path lies behind the symbolic link {link}, which the check does not follow. If that content is "
+                f"maintained elsewhere, list {link}/** under exclude; links into it are then counted as not checked.")
+
+    def ignored_hint(self, path: str) -> str:
+        """Explain a missing link target that is present here but ignored by Git; empty otherwise.
+
+        Only a working-tree check can tell. A staged check never reads the working tree and
+        reports the same finding without this sentence.
+        """
+        ignored = None if self.staged else self.git_ignored()
+        if ignored is None:
+            return ""
+        files, directories = ignored
+        parts = PurePosixPath(path).parts
+        if path not in files and not any("/".join(parts[:count]) in directories for count in range(1, len(parts) + 1)):
+            return ""
+        if not os.path.lexists(self.root / path):
+            return ""
+        return (" It exists in this working tree, but Git ignores it, so other clones do not have it. To keep links into "
+                "a local-only directory, list that directory under exclude; they are then counted as not checked.")
+
     def read(self, path: str) -> bytes:
         path = relative_path(path)
         if path in self.cache:
@@ -279,7 +349,7 @@ class Snapshot:
             mode, oid = self.entries[path]
             if mode not in REGULAR_FILE_MODES:
                 raise WikiError(f"Unsupported index file mode {mode}: {path}")
-            data = run_git(self.repository, "cat-file", "blob", oid)
+            data = self._blob(oid)
         else:
             target = self.root / path
             try:
@@ -306,9 +376,64 @@ class Snapshot:
             return self.head_cache[path]
         if path not in self.head_entries:
             return b""
-        data = run_git(self.repository, "cat-file", "blob", self.head_entries[path][1])
+        data = self._blob(self.head_entries[path][1])
         self.head_cache[path] = data
         return data
+
+    def _blob(self, oid: str) -> bytes:
+        """Read one captured blob through a single `git cat-file --batch` process.
+
+        A staged run reads every registered document, and starting Git once per file took
+        most of the time on large repositories. An answer the batch reader cannot use is
+        read again with a separate `git cat-file blob`, which also reports the failure.
+        """
+        with self._blob_lock:
+            data = self._batch_blob(oid)
+        return data if data is not None else run_git(self.repository, "cat-file", "blob", oid)
+
+    def _batch_blob(self, oid: str) -> bytes | None:
+        name = oid.encode("ascii")
+        try:
+            if self._blob_reader is None:
+                self._blob_reader = subprocess.Popen(
+                    ["git", "-C", str(self.repository), "cat-file", "--batch"],
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            reader = self._blob_reader
+            reader.stdin.write(name + b"\n")
+            reader.stdin.flush()
+            header = reader.stdout.readline().split()
+            if len(header) == 3 and header[0] == name and header[1] == b"blob":
+                size = int(header[2])
+                data = reader.stdout.read(size)
+                if len(data) == size and reader.stdout.read(1) == b"\n":
+                    return data
+        except (OSError, ValueError):
+            pass
+        # The stream can no longer be trusted to be at an object boundary.
+        self.close()
+        return None
+
+    def close(self) -> None:
+        """Stop the batch reader. A later read starts a new one."""
+        reader, self._blob_reader = self._blob_reader, None
+        if reader is None:
+            return
+        for stream in (reader.stdin, reader.stdout):
+            try:
+                stream.close()
+            except OSError:
+                pass
+        try:
+            reader.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            reader.kill()
+            reader.wait()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
 
 @dataclass(frozen=True)
@@ -693,6 +818,8 @@ class Wiki:
         self.excludes = self.config.get("exclude", [])
         if not isinstance(self.excludes, list) or not all(isinstance(x, str) for x in self.excludes):
             raise WikiError("exclude must be an array of path patterns")
+        self._excluded_cache: dict[str, bool] = {}
+        self._documents: list[str] | None = None
         seen_roots: set[str] = set()
         for root in self.roots:
             root["path"] = relative_path(root.get("path"))
@@ -789,6 +916,10 @@ class Wiki:
         self.repo_views = self._repos_config(self.config.get("repos"))
         self.require_repos = False
         self.submodule_unchecked: dict[str, int] = {}
+        # Filled by check(): documents it could not read, with the reported reason, and links
+        # into excluded paths that no file of the snapshot lies under, counted per path.
+        self.unreadable: dict[str, str] = {}
+        self.excluded_links: dict[str, int] = {}
         self._unregistered: tuple[set[str], list[str]] | None = None
 
     def _repos_config(self, raw: object) -> list[RepoView]:
@@ -832,7 +963,8 @@ class Wiki:
         if self._unregistered is None:
             found: set[str] = set()
             for path in self.snapshot.files():
-                if self.excluded(path) or not path.lower().endswith((".md", ".markdown")):
+                # The suffix test is cheap and most files are not Markdown; ask about exclusion last.
+                if not path.lower().endswith((".md", ".markdown")) or self.excluded(path):
                     continue
                 parts = PurePosixPath(path).parts
                 for index, part in enumerate(parts[:-1]):
@@ -1117,14 +1249,20 @@ class Wiki:
         return [relative_path(p) for p in paths]
 
     def excluded(self, path: str) -> bool:
-        if any(part in DEFAULT_EXCLUDES for part in PurePosixPath(path).parts):
-            return True
-        return any(
-            fnmatch.fnmatchcase(path, pattern)
-            or fnmatch.fnmatchcase(path + "/", pattern)
-            or (pattern.endswith("/**") and path == pattern[:-3])
-            for pattern in self.excludes
-        )
+        # Several checks ask about the same paths and the patterns do not change after
+        # loading, so each answer is worked out once.
+        cached = self._excluded_cache.get(path)
+        if cached is None:
+            cached = self._excluded_cache[path] = (
+                any(part in DEFAULT_EXCLUDES for part in PurePosixPath(path).parts)
+                or any(
+                    fnmatch.fnmatchcase(path, pattern)
+                    or fnmatch.fnmatchcase(path + "/", pattern)
+                    or (pattern.endswith("/**") and path == pattern[:-3])
+                    for pattern in self.excludes
+                )
+            )
+        return cached
 
     def root_role(self, path: str) -> str | None:
         matching = [r for r in self.roots if under(path, r["path"])]
@@ -1153,10 +1291,42 @@ class Wiki:
         )
 
     def documents(self) -> list[str]:
-        return sorted(
-            p for p in self.snapshot.files()
-            if p.lower().endswith((".md", ".markdown")) and not self.excluded(p) and self.registered(p)
-        )
+        """Registered Markdown documents of the snapshot, sorted. Listed once: a snapshot does not change.
+
+        After check() has found documents it cannot read, they are left out: each already has
+        its own finding, and no other rule can judge a page whose text is unavailable.
+        """
+        if self._documents is None:
+            self._documents = sorted(
+                p for p in self.snapshot.files()
+                if p.lower().endswith((".md", ".markdown")) and not self.excluded(p) and self.registered(p)
+            )
+        if self.unreadable:
+            return [p for p in self._documents if p not in self.unreadable]
+        return list(self._documents)
+
+    def excluded_outside_snapshot(self, path: str) -> str | None:
+        """The excluded path that holds `path` when the snapshot has no file under it; else None.
+
+        A project excludes, for example, a local checkout or build output that Git does not
+        track, or a symbolic link to content kept elsewhere. Whether a link into it resolves
+        cannot be read from any snapshot, which differs from a target that is missing from a
+        directory the snapshot does contain.
+        """
+        parts = PurePosixPath(path).parts
+        topmost = True
+        for count in range(1, len(parts) + 1):
+            candidate = "/".join(parts[:count])
+            if not self.excluded(candidate):
+                continue
+            # A symbolic link is one entry of the snapshot, yet nothing at or behind it can be read.
+            if self.snapshot.is_symlink(candidate):
+                return candidate
+            if topmost:
+                if not self.snapshot.exists(candidate):
+                    return candidate
+                topmost = False
+        return None
 
     def archive_roots(self) -> list[str]:
         return [r["path"] for r in self.roots if r["role"] == "archive"]
@@ -1279,9 +1449,18 @@ def _parse_links(text: str, path: str, target_spans: list[tuple[int, int]] | Non
             ref_end = clean.find("]", end + 1)
             if ref_end >= 0:
                 key = def_key(clean[end + 1:ref_end] or label)
-                found.append(Link(definitions.get(key, key), line, "markdown" if key in definitions else "missing-reference", defined_at.get(key)))
-                i = ref_end + 1
-                continue
+                if key in definitions:
+                    found.append(Link(definitions[key], line, "markdown", defined_at[key]))
+                    i = ref_end + 1
+                    continue
+                # Markdown renders an undefined [a][b] as plain text. It is reported as a
+                # forgotten definition only on a page that defines reference links at all:
+                # indexes and adjacent tags such as m[i][j] or [P0][Nit] are common on pages
+                # that define none. A label starting with ^ is a footnote, never a link.
+                if definitions and not key.startswith("^"):
+                    found.append(Link(key, line, "missing-reference"))
+                    i = ref_end + 1
+                    continue
         elif def_key(label) in definitions:
             found.append(Link(definitions[def_key(label)], line, "markdown", defined_at[def_key(label)]))
         i = end
@@ -1308,6 +1487,12 @@ def anchors(text: str) -> set[str]:
     for line in clean.splitlines():
         match = re.match(r"^ {0,3}#{1,6}\s+(.+?)\s*#*\s*$", line)
         if match:
+            # An ID written at the end of the heading, as kramdown, Pandoc and Python-Markdown
+            # read it: {#id}, {: #id} or {#id .class}. Renderers without that syntax, GitHub
+            # among them, build the anchor from the whole heading text, which stays accepted.
+            attributes = re.search(r"\{:?\s*([^{}]*)\}$", match.group(1))
+            if attributes:
+                result.update(token[1:] for token in attributes.group(1).split() if len(token) > 1 and token.startswith("#"))
             slug = heading_slug(match.group(1))
             count = counts.get(slug, 0)
             candidate = slug if count == 0 else f"{slug}-{count}"
@@ -1473,9 +1658,34 @@ def unchecked_repo_findings(wiki: Wiki) -> list[Finding]:
     return findings
 
 
+def watch_path_findings(wiki: Wiki) -> list[Finding]:
+    """Report remind.watch patterns that match no file: a path moved, or a group watches nothing."""
+    if wiki.remind is None:
+        return []
+    files = wiki.snapshot.files()
+    findings: list[Finding] = []
+    for watch in wiki.remind["watch"]:
+        for kind in ("code", "docs"):
+            dead = [pattern for pattern in watch[kind]
+                    if not any(fnmatch.fnmatchcase(path, pattern) for path in files)]
+            # Code is often listed as one wildcard per file type, and a type that has no
+            # file yet is not drift: a code wildcard counts only when no code pattern matches.
+            if kind == "code" and len(dead) < len(watch[kind]):
+                dead = [pattern for pattern in dead if not any(char in pattern for char in "*?[")]
+            for pattern in dead:
+                findings.append(Finding(
+                    "watch-path-dead", "warning", wiki.config_path,
+                    f"remind.watch '{watch['name']}' {kind} pattern '{pattern}' matches no file; "
+                    "point it at the current path or remove it.",
+                    key=f"{watch['name']}:{kind}:{pattern}"))
+    return findings
+
+
 def check(wiki: Wiki) -> list[Finding]:
     findings: list[Finding] = []
     snap = wiki.snapshot
+    wiki.unreadable = {}
+    wiki.excluded_links = {}
     required = set(wiki.entrypoints) | set(wiki.page_map)
     for module in wiki.modules:
         required.add(module["entry"])
@@ -1488,7 +1698,16 @@ def check(wiki: Wiki) -> list[Finding]:
         if wiki.excluded(path):
             findings.append(Finding("required-excluded", "error", path, "Required path is excluded by configuration"))
         elif not snap.exists(path):
-            findings.append(Finding("missing-entry", "error", path, "Required path is missing from this snapshot"))
+            message = "Required path is missing from this snapshot"
+            link = snap.symlink_above(path)
+            if link is None:
+                findings.append(Finding("missing-entry", "error", path, message))
+            else:
+                # The baseline identifies this finding by the original message, so the hint stays out of the key.
+                findings.append(Finding("missing-entry", "error", path,
+                                        f"{message}. It lies behind the symbolic link {link}, which the check does not follow. "
+                                        "Register only paths whose files are in this repository, or replace the link with regular files.",
+                                        key=message))
     findings.extend(naming_check(wiki))
     for path in sorted(wiki.unregistered_docs()):
         findings.append(Finding("unregistered-docs", "error", path, "Documentation root is not registered or explicitly excluded"))
@@ -1517,12 +1736,17 @@ def check(wiki: Wiki) -> list[Finding]:
                 findings.append(Finding("duplicate-current-id", "error", path, f"Current ID also belongs to {current_ids[key]} in scope {key[0]}"))
             current_ids[key] = path
     anchor_cache: dict[str, set[str]] = {}
+    unreadable: dict[str, str] = {}
     for path in wiki.documents():
         severity = "warning" if wiki.role(path) == "archive" else "error"
         try:
             text = snap.text(path)
         except WikiError as exc:
-            findings.append(Finding("unreadable", severity, path, str(exc)))
+            reason = str(exc)
+            hint = snap.symlink_hint(path)
+            # The baseline identifies this finding by the original message, so the hint stays out of the key.
+            findings.append(Finding("unreadable", severity, path, reason + hint, key=reason if hint else None))
+            unreadable[path] = reason + hint
             continue
         budget = wiki.page_map.get(path, {}).get("max_chars")
         if budget and len(text) > budget:
@@ -1561,8 +1785,14 @@ def check(wiki: Wiki) -> list[Finding]:
             if sub is not None:
                 wiki.submodule_unchecked[sub] = wiki.submodule_unchecked.get(sub, 0) + 1
                 continue
-            if not snap.exists(target):
-                hint = link_fix_hint(wiki, path, link.target)
+            missing = not snap.exists(target)
+            if missing or snap.is_symlink(target):
+                outside = wiki.excluded_outside_snapshot(target)
+                if outside is not None:
+                    wiki.excluded_links[outside] = wiki.excluded_links.get(outside, 0) + 1
+                    continue
+            if missing:
+                hint = link_fix_hint(wiki, path, link.target) or snap.behind_symlink_hint(target) or snap.ignored_hint(target)
                 findings.append(Finding("broken-link", severity, path,
                                         f"Target does not exist with exact case: {link.target}" + ("." + hint if hint else ""),
                                         link.line, link.target))
@@ -1574,8 +1804,9 @@ def check(wiki: Wiki) -> list[Finding]:
                     if fragment not in anchor_cache[target]:
                         findings.append(Finding("broken-anchor", severity, path, f"ATX/explicit anchor does not exist: {link.target}", link.line, link.target))
                 except WikiError as exc:
-                    findings.append(Finding("unreadable-target", severity, path, str(exc), link.line, link.target))
-            if (severity == "error" and not wiki.is_decision(path) and snap.is_file(target)
+                    findings.append(Finding("unreadable-target", severity, path, str(exc) + snap.symlink_hint(target), link.line, link.target))
+            # A generated page lists what exists, replaced documents included; nobody chose those links.
+            if (severity == "error" and not wiki.is_decision(path) and wiki.role(path) != "generated" and snap.is_file(target)
                     and target.lower().endswith((".md", ".markdown")) and wiki.role(target) != "archive"):
                 raw, kind = wiki.status(target)
                 if kind in {"superseded", "retired"}:
@@ -1583,7 +1814,11 @@ def check(wiki: Wiki) -> list[Finding]:
                     findings.append(Finding("links-replaced-document", level, path,
                                             f"Links to a document whose status is '{raw}': {link.target}. Link its replacement or the current design instead.",
                                             link.line, link.target))
+    # The rules below read documents again. One that cannot be read has its finding above
+    # and is left out of wiki.documents() from here on.
+    wiki.unreadable = unreadable
     findings.extend(unchecked_repo_findings(wiki))
+    findings.extend(watch_path_findings(wiki))
     for path in wiki.documents():
         if wiki.role(path) == "archive" or not (wiki.is_decision(path) or wiki.is_plan(path)):
             continue
@@ -1653,9 +1888,10 @@ def orphan_check(wiki: Wiki) -> list[Finding]:
     asset_roots = [r["path"] for r in wiki.roots if r["role"] == "knowledge"] + [m["docs"] for m in wiki.modules if m.get("docs")]
     tool_files = {wiki.config_path, wiki.generated_index, wiki.baseline_path}
     for path in sorted(snap.files()):
-        if (path.lower().endswith((".md", ".markdown")) or path in tool_files or wiki.excluded(path)
+        if (path.lower().endswith((".md", ".markdown")) or path in tool_files
+                or not any(under(path, r) for r in asset_roots) or wiki.excluded(path)
                 or any(part.startswith(".") for part in PurePosixPath(path).parts)
-                or not any(under(path, r) for r in asset_roots) or wiki.root_role(path) == "archive"
+                or wiki.root_role(path) == "archive"
                 or matches(path, wiki.orphan_ignore) or reached(path) or wiki.is_legacy(path)):
             continue
         findings.append(Finding("orphan-asset", "warning", path,
@@ -1729,6 +1965,11 @@ def parse_requirements(wiki: Wiki, group: dict) -> tuple[dict[str, dict], list[F
     findings: list[Finding] = []
     requirements: dict[str, dict] = {}
     patterns = group["patterns"]
+    for path in sorted(wiki.unreadable):
+        # Without every requirements file the set of IDs is incomplete, and references to
+        # the missing ones would be reported as unknown.
+        if wiki.role(path) != "archive" and matches(path, group["files"]):
+            raise WikiError(wiki.unreadable[path])
     for path in wiki.documents():
         if wiki.role(path) == "archive" or not matches(path, group["files"]):
             continue
@@ -1970,6 +2211,12 @@ def verification_rows(lines: list[str]) -> list[tuple[str, str]]:
 def review_check(wiki: Wiki) -> list[Finding]:
     findings: list[Finding] = []
     documents = wiki.documents()
+    # A review is read as a whole: its plans and findings refer to IDs in its other files.
+    review_dirs = {posixpath.dirname(p) for p in [*documents, *wiki.unreadable]
+                   if wiki.role(p) != "archive" and matches(p, wiki.review_patterns)}
+    for path in sorted(wiki.unreadable):
+        if posixpath.dirname(path) in review_dirs:
+            raise WikiError(wiki.unreadable[path])
     for readme in documents:
         if wiki.role(readme) == "archive" or not matches(readme, wiki.review_patterns):
             continue
@@ -2199,6 +2446,8 @@ def report(wiki: Wiki, findings: list[Finding], command: str, **extra: object) -
             **({"submodules": [{"path": sub, "checked_out": wiki.snapshot.submodule_checked_out(sub),
                                 "links_unchecked": wiki.submodule_unchecked.get(sub, 0)}
                                for sub in sorted(wiki.snapshot.submodule_paths())]} if wiki.snapshot.submodule_paths() else {}),
+            **({"excluded_links": [{"path": excluded, "links_unchecked": count}
+                                   for excluded, count in sorted(wiki.excluded_links.items())]} if wiki.excluded_links else {}),
             "not_checked": ["prose correctness", "arbitrary Markdown/host syntax", "runtime contract behavior", "external URLs"],
         },
         "errors": errors,
@@ -2241,6 +2490,8 @@ def output_report(result: dict, as_json: bool) -> None:
     print(f"Snapshot: {result['snapshot']}")
     if result.get("coverage", {}).get("git_ignored") == "not-applied":
         print("Git ignore rules: not applied (no Git work tree, Git unavailable, or the root itself is ignored); every file under the root was read")
+    for item in result.get("coverage", {}).get("excluded_links", []):
+        print(f"Links not checked: {item['links_unchecked']} into {item['path']}, which is excluded and has no file in this snapshot")
     for group in result.get("coverage", {}).get("requirements", []):
         print(f"requirements[{group['name']}]: {group['requirements']} requirements, {group['acceptance']} acceptance items: "
               f"{group['tested']} with tests, {group['manual']} manual only, {group['untested']} untested")
@@ -2930,6 +3181,45 @@ def git_text(root: Path, *args: str) -> str:
     return run_git(root, "-c", "core.quotePath=false", *args).decode("utf-8", "surrogateescape")
 
 
+def git_records(root: Path, *args: str):
+    """Yield the records of a Git command, split at the \\x1e separator, as Git prints them.
+
+    A history query usually has its answer after the first few commits. The caller stops
+    reading there and Git is stopped with it, so the query costs what was read, not the
+    whole window. The records are the same ones git_text(...).split("\\x1e")[1:] gives.
+    Stopping early is not an error; a failure Git reports at the end of its output is.
+    """
+    with tempfile.TemporaryFile() as errors:
+        process = subprocess.Popen(["git", "-C", str(root), "-c", "core.quotePath=false", *args],
+                                   stdout=subprocess.PIPE, stderr=errors, bufsize=0)
+        finished = False
+        try:
+            pending = b""
+            started = False
+            while True:
+                chunk = process.stdout.read(65536)
+                if not chunk:
+                    break
+                pieces = (pending + chunk).split(b"\x1e")
+                pending = pieces.pop()
+                for piece in pieces:
+                    if started:
+                        yield piece.decode("utf-8", "surrogateescape")
+                    started = True
+            if started:
+                yield pending.decode("utf-8", "surrogateescape")
+            finished = True
+        finally:
+            if not finished:
+                process.kill()
+            process.stdout.close()
+            process.wait()
+        if process.returncode:
+            errors.seek(0)
+            message = errors.read().decode("utf-8", "replace").strip()
+            raise WikiError(f"Git snapshot unavailable: {message or 'git command failed'}")
+
+
 def has_head(root: Path) -> bool:
     result = subprocess.run(["git", "-C", str(root), "rev-parse", "--verify", "-q", "HEAD"], capture_output=True, check=False)
     if result.returncode not in {0, 1}:
@@ -3102,20 +3392,24 @@ def substantial_paths_from_entries(before_entries: dict[str, tuple[str, str]],
              if after_entries[p][0] in REGULAR_FILE_MODES}
     moved: set[str] = set()
 
-    def pair(key_before, key_after):
+    def pair(removed_paths, added_paths, key_before, key_after):
         sources: dict[object, list[str]] = {}
         destinations: dict[object, list[str]] = {}
-        for path in sorted(removed - moved):
+        for path in sorted(removed_paths - moved):
             sources.setdefault(key_before(path), []).append(path)
-        for path in sorted(added - moved):
+        for path in sorted(added_paths - moved):
             destinations.setdefault(key_after(path), []).append(path)
         for key in sources.keys() & destinations.keys():
             for source, destination in zip(sources[key], destinations[key]):
                 moved.update((source, destination))
 
     if removed and added:
-        pair(lambda p: before_entries[p][1], lambda p: after_entries[p][1])
-    remaining_removed, remaining_added = removed - moved, added - moved
+        pair(removed, added, lambda p: before_entries[p][1], lambda p: after_entries[p][1])
+    # Mechanical edits exist only in Markdown, so only Markdown files are read to pair a
+    # move; other files move only with identical content. A commit can add or remove
+    # large binaries beside a document, and normalizing those stalls the commit hook.
+    remaining_removed = {p for p in removed - moved if p.lower().endswith(MARKDOWN_SUFFIXES)}
+    remaining_added = {p for p in added - moved if p.lower().endswith(MARKDOWN_SUFFIXES)}
     pair_needed = bool(remaining_removed and remaining_added and
                        candidates & (remaining_removed | remaining_added))
     if prepare is not None:
@@ -3124,7 +3418,8 @@ def substantial_paths_from_entries(before_entries: dict[str, tuple[str, str]],
     if pair_needed:
         def normalized(data: bytes):
             return _normalize_document(data.decode("utf-8", "replace"), status_line_substantial)
-        pair(lambda p: normalized(read_before(p)), lambda p: normalized(read_after(p)))
+        pair(remaining_removed, remaining_added,
+             lambda p: normalized(read_before(p)), lambda p: normalized(read_after(p)))
     hits: set[str] = set()
     for path in candidates - moved:
         before_entry = before_entries.get(path)
@@ -3345,11 +3640,13 @@ def history_debt(wiki: Wiki) -> tuple[dict[str, dict], bool]:
     if not has_head(root):
         return status, False
     adopted = adoption_commits(wiki)
-    output = git_text(root, "log", f"-n{HISTORY_SCAN_LIMIT}", "--relative", "--no-renames", "--numstat",
-                      f"--format=%x1e%H%x1f%P%x1f%(trailers:key={REVIEW_TRAILER},valueonly,separator=%x1d)")
+    # Read commit by commit: once every group has its starting point the rest of the
+    # window is not needed, and producing --numstat for it is the slow part.
+    records = git_records(root, "log", f"-n{HISTORY_SCAN_LIMIT}", "--relative", "--no-renames", "--numstat",
+                          f"--format=%x1e%H%x1f%P%x1f%(trailers:key={REVIEW_TRAILER},valueonly,separator=%x1d)")
     open_names = set(status)
     scanned = 0
-    for record in output.split("\x1e")[1:]:
+    for record in records:
         scanned += 1
         header, _, body = record.partition("\n")
         commit, _, rest = header.partition("\x1f")
@@ -3402,6 +3699,21 @@ def history_debt(wiki: Wiki) -> tuple[dict[str, dict], bool]:
                 status[name]["lines"] += sum(code)
         if not open_names:
             break
+    records.close()
+    if open_names and not wiki.snapshot.staged:
+        # Documents that exist but were never committed have no history to count from:
+        # the group waits for their first commit instead of owing every scanned change.
+        # The staged view reads only the index: documents in the commit reset the group
+        # there, and documents left out of it are not visible.
+        listing = run_git(root, "ls-tree", "-r", "--name-only", "-z", "HEAD")
+        committed = {p.decode("utf-8", "surrogateescape") for p in listing.split(b"\0") if p}
+        present = wiki.snapshot.files()
+        for watch in watches:
+            name = watch["name"]
+            if (name in open_names and not any(matches(path, watch["docs"]) for path in committed)
+                    and any(matches(path, watch["docs"]) for path in present)):
+                status[name] = {"commits": 0, "lines": 0, "since": UNCOMMITTED_DOCS}
+                open_names.discard(name)
     return status, bool(open_names) and scanned >= HISTORY_SCAN_LIMIT
 
 
@@ -3443,13 +3755,14 @@ def days_since_commit(wiki: Wiki, path: str) -> int | None:
     if not has_head(root):
         return None
     adopted = adoption_commits(wiki)
-    output = git_text(root, "log", f"-n{STALE_SCAN_LIMIT}", "--format=%x1e%H%x1f%ct%x1f%P",
-                      "--", path)
-    records = [r for r in output.split("\x1e") if r.strip()]
-    if not records:
-        return None
+    # Read commit by commit and stop at the first substantial change. A plan usually has
+    # fewer commits than the window, so waiting for the full answer walks all of history.
+    records = git_records(root, "log", f"-n{STALE_SCAN_LIMIT}", "--format=%x1e%H%x1f%ct%x1f%P",
+                          "--", path)
     oldest_ct: int | None = None
     for record in records:
+        if not record.strip():
+            continue
         commit, ct, parents = record.strip("\r\n ").split("\x1f", 2)
         oldest_ct = int(ct)
         if commit in adopted:
@@ -3467,6 +3780,7 @@ def days_since_commit(wiki: Wiki, path: str) -> int | None:
         else:
             changed = path in substantial_paths_in_commit(root, commit, {path}, status_line_substantial=True)
         if changed:
+            records.close()
             return (int(time.time()) - int(ct)) // 86400
     return (int(time.time()) - oldest_ct) // 86400 if oldest_ct is not None else None
 
@@ -3605,8 +3919,10 @@ def hooks_not_installed_findings(wiki: Wiki) -> list[Finding]:
     for name, state in hooks.items():
         if state == "installed":
             continue
+        effect = ("merge commits that Git creates without conflicts are not checked" if name == "pre-merge-commit"
+                  else "commit-time checks and reminders do not run")
         findings.append(Finding("hooks-not-installed", "warning", name,
-                                f"[user] Git {name} hook: {state}; commit-time checks and reminders do not run. "
+                                f"[user] Git {name} hook: {state}; {effect}. "
                                 f"Either run 'git config core.hooksPath scripts/wiki/hooks', or add "
                                 f"'python3 scripts/wiki/wiki.py {HOOK_MARKERS[name]} --root .' "
                                 f"(pass --message-file \"$1\" for commit-msg) to the existing {name} hook, as in "
@@ -3651,6 +3967,11 @@ def remind_report(wiki: Wiki, message_file: str | None = None, list_legacy: bool
     for watch in config["watch"]:
         name = watch["name"]
         item = status[name]
+        if item["since"] == UNCOMMITTED_DOCS:
+            findings.append(Finding(
+                "docs-uncommitted", "warning", name,
+                f"[info] The documents of watch '{name}' exist but have never been committed, so no code change is "
+                "counted against them yet. Commit them to start the count."))
         code = [size for path, size in staged_changes if matches(path, watch["code"])]
         docs_touched = any(matches(path, watch["docs"]) for path in staged_doc_substantial)
         if snap.staged and code and not docs_touched and name not in reviewed:
@@ -4018,6 +4339,7 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    snapshot = None
     try:
         snapshot = Snapshot(args.root, getattr(args, "staged", False))
         config_path = relative_path(args.config)
@@ -4108,6 +4430,9 @@ def main(argv: list[str] | None = None) -> int:
                   "findings": [asdict(Finding("input-unavailable", "error", args.config, str(exc)))]}
         output_report(result, args.json)
         return 2
+    finally:
+        if snapshot is not None:
+            snapshot.close()
 
 
 if __name__ == "__main__":
