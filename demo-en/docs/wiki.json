@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "project_name": "NoteBox",
+  "roots": [
+    {
+      "path": "docs",
+      "role": "knowledge"
+    },
+    {
+      "path": "dev",
+      "role": "process"
+    },
+    {
+      "path": "archive",
+      "role": "archive"
+    }
+  ],
+  "modules": [
+    {
+      "name": "notes",
+      "path": "notes",
+      "entry": "notes/README.md",
+      "docs": "notes/docs"
+    }
+  ],
+  "entrypoints": [
+    "README.md",
+    "AGENTS.md",
+    "docs/INDEX.md",
+    "dev/INDEX.md"
+  ],
+  "pages": [
+    {
+      "path": "AGENTS.md",
+      "role": "entry",
+      "max_chars": 16000
+    },
+    {
+      "path": "docs/INDEX.md",
+      "role": "entry",
+      "max_chars": 5000
+    },
+    {
+      "path": "notes/README.md",
+      "role": "entry",
+      "max_chars": 5000
+    }
+  ],
+  "exclude": [
+    ".git/**",
+    "**/__pycache__/**"
+  ],
+  "status_values": {"adopted": "current", "proposed": "draft"},
+  "dir_budgets": {
+    "dev/*": 50,
+    "dev/plans": 30,
+    "dev/inbox/*": 30,
+    "dev/reviews/*": 20
+  },
+  "generated_index": "docs/wiki-index.json",
+  "remind": {
+    "watch": [
+      {
+        "name": "notes",
+        "code": [
+          "notes/src/*"
+        ],
+        "docs": [
+          "notes/docs/*",
+          "notes/README.md"
+        ]
+      }
+    ],
+    "threshold": {
+      "commits": 10,
+      "lines": 300
+    },
+    "block_at": {
+      "commits": 30
+    },
+    "ask_user": [
+      "docs/requirements.md",
+      "docs/principles/*",
+      "notes/docs/requirements.md",
+      "notes/docs/decisions/*"
+    ]
+  },
+  "requirements": {
+    "files": [
+      "notes/docs/requirements.md"
+    ],
+    "tests": [
+      "notes/tests/*"
+    ]
+  },
+  "verification": {
+    "review_by_required": [
+      "docs/guides/*"
+    ]
+  },
+  "verify": {
+    "commands": [
+      {
+        "name": "tests",
+        "kind": "test",
+        "run": [
+          "python3",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "notes/tests",
+          "-v"
+        ],
+        "env": {
+          "PYTHONDONTWRITEBYTECODE": "1"
+        }
+      }
+    ],
+    "files": [
+      "notes/src/title.py",
+      "notes/tests/test_title.py"
+    ]
+  },
+  "reconcile": [
+    {
+      "name": "title-errors",
+      "docs": [
+        "notes/docs/requirements.md"
+      ],
+      "doc_pattern": "ValueError\\(\"([^\"]+)\"\\)",
+      "code": [
+        "notes/src/*.py"
+      ],
+      "code_pattern": "ValueError\\(\"([^\"]+)\"\\)"
+    }
+  ]
+}

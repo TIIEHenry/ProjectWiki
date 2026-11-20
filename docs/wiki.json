@@ -19,9 +19,19 @@
     {"path": "scripts/wiki/skills/adopt-projectwiki/SKILL.md", "role": "reference"},
     {"path": "scripts/wiki/skills/review-docs/SKILL.md", "role": "reference"},
     {"path": "scripts/wiki/skills/organize-docs/SKILL.md", "role": "reference"},
-    {"path": "scripts/wiki/skills/capture-knowledge/SKILL.md", "role": "reference"}
+    {"path": "scripts/wiki/skills/capture-knowledge/SKILL.md", "role": "reference"},
+    {"path": "docs/en/INDEX.md", "role": "entry", "max_chars": 8000},
+    {"path": "scripts/wiki/en/README.md", "role": "entry", "max_chars": 12000},
+    {"path": "scripts/wiki/en/reference.md", "role": "reference"},
+    {"path": "scripts/wiki/en/formats.md", "role": "reference"},
+    {"path": "scripts/wiki/en/workflow.md", "role": "reference"},
+    {"path": "scripts/wiki/en/skills/sync-docs-and-commit/SKILL.md", "role": "reference"},
+    {"path": "scripts/wiki/en/skills/adopt-projectwiki/SKILL.md", "role": "reference"},
+    {"path": "scripts/wiki/en/skills/review-docs/SKILL.md", "role": "reference"},
+    {"path": "scripts/wiki/en/skills/organize-docs/SKILL.md", "role": "reference"},
+    {"path": "scripts/wiki/en/skills/capture-knowledge/SKILL.md", "role": "reference"}
   ],
-  "exclude": ["tmp/**", "templates/**", "demo/**", ".git/**", "**/__pycache__/**"],
+  "exclude": ["tmp/**", "templates/**", "demo/**", "demo-en/**", ".git/**", "**/__pycache__/**"],
   "status_values": {"采用": "current"},
   "requirements": {"files": ["docs/requirements/*.md"], "tests": ["tests/*"]},
   "reconcile": [
@@ -32,16 +42,28 @@
       "code": ["scripts/wiki/wiki.py"],
       "code_pattern": "Finding\\(\\s*\"([a-z][a-z0-9]*(?:-[a-z0-9]+)+)\"",
       "ignore": ["agent-checked", "human-checked", "check-new", "export-okf", "working-tree", "git-ignored-skipped", "not-applied", "checked-out", "not-checked-out", "no-git-head", "git-head"]
+    },
+    {
+      "name": "rules-en",
+      "docs": ["scripts/wiki/en/README.md", "scripts/wiki/en/reference.md"],
+      "doc_pattern": "`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`",
+      "code": ["scripts/wiki/wiki.py"],
+      "code_pattern": "Finding\\(\\s*\"([a-z][a-z0-9]*(?:-[a-z0-9]+)+)\"",
+      "ignore": ["agent-checked", "human-checked", "check-new", "export-okf", "working-tree", "git-ignored-skipped", "not-applied", "checked-out", "not-checked-out", "no-git-head", "git-head"]
     }
   ],
   "verify": {
     "commands": [
       {"name": "tests", "kind": "test", "run": ["python3", "-m", "unittest", "discover", "-s", "tests"], "env": {"PYTHONDONTWRITEBYTECODE": "1"}},
       {"name": "demo-tests", "kind": "test", "run": ["python3", "-m", "unittest", "discover", "-s", "notes/tests"], "cwd": "demo", "env": {"PYTHONDONTWRITEBYTECODE": "1"}},
+      {"name": "demo-en-tests", "kind": "test", "run": ["python3", "-m", "unittest", "discover", "-s", "notes/tests"], "cwd": "demo-en", "env": {"PYTHONDONTWRITEBYTECODE": "1"}},
       {"name": "check", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "."], "summary_lines": 1, "summary_from": "start"},
       {"name": "check-demo", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "demo"], "summary_lines": 1, "summary_from": "start"},
+      {"name": "check-demo-en", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "demo-en"], "summary_lines": 1, "summary_from": "start"},
       {"name": "check-template", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "templates/project"], "summary_lines": 1, "summary_from": "start"},
-      {"name": "index-demo", "run": ["python3", "scripts/wiki/wiki.py", "index", "--root", "demo", "--check"], "summary_lines": 1}
+      {"name": "check-template-en", "run": ["python3", "scripts/wiki/wiki.py", "check", "--root", "templates/en/project"], "summary_lines": 1, "summary_from": "start"},
+      {"name": "index-demo", "run": ["python3", "scripts/wiki/wiki.py", "index", "--root", "demo", "--check"], "summary_lines": 1},
+      {"name": "index-demo-en", "run": ["python3", "scripts/wiki/wiki.py", "index", "--root", "demo-en", "--check"], "summary_lines": 1}
     ],
     "files": ["scripts/wiki/wiki.py", "scripts/wiki/hooks/*", "tests/test_wiki.py"]
   },
@@ -49,7 +71,11 @@
     "watch": [
       {"name": "wiki", "code": ["scripts/wiki/wiki.py", "scripts/wiki/hooks/*", "tests/*"], "docs": ["scripts/wiki/*.md", "docs/design/automation.md"]},
       {"name": "templates", "code": ["templates/*"], "docs": ["templates/README.md", "docs/guides/adoption.md"]},
-      {"name": "system-rules", "code": ["docs/design/*", "docs/principles/*", "docs/requirements/*", "docs/guides/*", "docs/standards/*"], "docs": ["templates/*", "demo/*", "AGENTS.md"]}
+      {"name": "system-rules", "code": ["docs/design/*", "docs/principles/*", "docs/requirements/*", "docs/guides/*", "docs/standards/*"], "docs": ["templates/*", "demo/*", "AGENTS.md"]},
+      {"name": "en-docs", "code": ["docs/INDEX.md", "docs/principles/document-system.md", "docs/design/*", "docs/guides/*", "docs/standards/writing.md"], "docs": ["docs/en/*"]},
+      {"name": "en-tool", "code": ["scripts/wiki/README.md", "scripts/wiki/formats.md", "scripts/wiki/reference.md", "scripts/wiki/workflow.md", "scripts/wiki/skills/*"], "docs": ["scripts/wiki/en/*"]},
+      {"name": "en-templates", "code": ["templates/README.md", "templates/decision.md", "templates/inbox-item.md", "templates/plan.md", "templates/requirements.md", "templates/module/*", "templates/review/*", "templates/project/*"], "docs": ["templates/en/*"]},
+      {"name": "en-demo", "code": ["demo/*"], "docs": ["demo-en/*"]}
     ],
     "threshold": {"commits": 10, "lines": 300},
     "block_at": {"commits": 30},

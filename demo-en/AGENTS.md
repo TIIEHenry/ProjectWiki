@@ -1,0 +1,31 @@
+# NoteBox development constraints
+
+- The current requirements, principles, and design are in `docs/` and `notes/docs/`. `dev/` records to-dos and the implementation process; `archive/` keeps history and cannot be taken directly as current rules.
+- Titles must be counted by Unicode code points, and after leading and trailing whitespace is removed must be 1–60 characters long (requirement NB-01). Silently truncating user input is not allowed.
+- The documentation development workflow follows `scripts/wiki/en/workflow.md` by default; an existing workflow does not automatically take precedence, and the two sets of requirements are not applied on top of each other by default. Duplication or conflict is migrated in the original entry and its readers by its section "Shared workflow and project adaptation"; before the migration, the strong constraints or hooks currently in force must not be silently bypassed.
+- Stable knowledge is written for human readers: state the specific object, the conditions of application, and the behavior clearly, and avoid AI boilerplate, translationese, and unexplained internal abbreviations.
+- The path of a new document must not contain spaces, `#`, `%`, or parentheses; after copying a template, rename it to the specific topic. Status and version are written in the text and not in the file names of stable knowledge.
+- A whole page is archived to `archive/<original relative path>`, keeping the file name and the directory; stop when the target already exists, and do not overwrite. Preview with `python3 scripts/wiki/wiki.py archive <path> --root .`, then add `--apply --expect <plan_sha256>` to execute; do not move files or change links by hand. Check the matching history before creating a document; on a hit, judge whether it is a restoration, a continuation, or a new topic, and do not treat history of the same name as a permanent ban on the name.
+- When changing title handling, first read the [module entry](notes/README.md) and the [module requirements](notes/docs/requirements.md), and check the affected design and tests.
+- The title error messages (the text of `ValueError`) are written only once, in the [module requirements](notes/docs/requirements.md); when a message is changed in the code but not in the requirements, `check` reports `reconcile-missing-in-doc`.
+- After changing the implementation, run `python3 scripts/wiki/wiki.py verify --root .`, which runs the tests registered in `docs/wiki.json`. The verification record of a plan uses its output directly, and command results are not written by hand; on failure, record the specific failure, and do not claim that it passed.
+- Wiki search focuses on valid content by default. Ordinary `rg` excludes the archive through `.ignore`; when history is needed, use `rg --no-ignore 'keyword' archive/`. `grep -R` does not read `.ignore`, and for routine queries `--exclude-dir=archive` can be added.
+- When current knowledge changes, update the matching text in place; do not create a plan for every commit, and do not rewrite a status page mechanically.
+- When you find a problem or have an idea but are not sure where it belongs or whether it should be done, write it into `dev/inbox/<type>/` (for examples, see [inbox items](dev/inbox/README.md)), and do not change `docs/` directly. When it has been handled, state where it went, change the status to `finished`, and then archive it with `archive`.
+- The forms of status lines, verification lines, requirement entries, and review findings follow `scripts/wiki/en/formats.md`; when a commit adds a `human:` name, the hook gives a `[user]` reminder, and an agent must not write itself as `human:`.
+- After the Git hooks are installed by the ProjectWiki adoption guide, the documentation reminders run at every commit, configured in `remind` of `docs/wiki.json`. A single `docs-not-updated` is an `[info]` notice, and below the accumulation threshold no review or trailer is required; when the text is known to be wrong, it still has to be updated in that commit. On an `[agent]` reminder of accumulated review, check and then update `notes/docs/` or the module entry, or write `Docs-Reviewed: notes <reason>` in the last paragraph of the commit message; handle other `[agent]` reminders as they prompt. On a `[user]` reminder, first confirm the change of requirement or decision with the user. The thresholds and the handling are in "Documentation reminders at commit time" of `scripts/wiki/en/reference.md`. The hooks must not be skipped with `--no-verify`.
+- When changing an existing decision such as title counting, first write a new decision record that supersedes the old one, and in the same change update the places in this file, the project requirements, the module requirements and design, and the fault maintenance guide that still state the old rule. Search in both ways, by links and by keywords (such as "code point").
+
+Read the skills by the actual tasks of this project, and do not treat them as steps required for every task or commit; reading a skill by path does not mean that the host has installed it natively.
+
+| Task | Local skill path |
+|---|---|
+| Completing an unfinished ProjectWiki adoption | `scripts/wiki/en/skills/adopt-projectwiki/SKILL.md` |
+| Reviewing given documents against the implementation | `scripts/wiki/en/skills/review-docs/SKILL.md` |
+| Organizing the documents in a given scope | `scripts/wiki/en/skills/organize-docs/SKILL.md` |
+| Capturing development experience, troubleshooting techniques, or confirmed conclusions | `scripts/wiki/en/skills/capture-knowledge/SKILL.md` |
+| The user asks to sync documents and commit, or to close out with a commit | `scripts/wiki/en/skills/sync-docs-and-commit/SKILL.md` |
+
+After copying the example on its own, open them locally; in the ProjectWiki repository, open the skills from the root directory, and the object operated on is still the project named this time. When the templates or the complete adoption guide are needed, use the source repository that has been located.
+
+More conventions are in the [development standard](docs/standards/development.md). When continuing existing work or checking the binding of an execution suite, first read the [development entry](dev/INDEX.md) and find the original records by what it declares.

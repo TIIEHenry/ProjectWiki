@@ -1,0 +1,171 @@
+{
+  "pages": [
+    {
+      "path": "AGENTS.md",
+      "role": "entry",
+      "scope": "project",
+      "title": "NoteBox development constraints"
+    },
+    {
+      "path": "README.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "NoteBox example project"
+    },
+    {
+      "path": "archive/INDEX.md",
+      "role": "archive",
+      "scope": "project",
+      "title": "Historical records"
+    },
+    {
+      "path": "archive/dev/plans/initial-title-validation.md",
+      "role": "archive",
+      "scope": "project",
+      "status": "done",
+      "title": "First title validation plan (historical example)"
+    },
+    {
+      "path": "dev/INDEX.md",
+      "role": "process",
+      "scope": "project",
+      "title": "Development entry"
+    },
+    {
+      "path": "dev/inbox/README.md",
+      "role": "process",
+      "scope": "project",
+      "title": "Inbox"
+    },
+    {
+      "path": "dev/inbox/bug/combining-character-count.md",
+      "role": "process",
+      "scope": "project",
+      "status": "open",
+      "status_class": "open",
+      "title": "Question about counting combining characters in titles"
+    },
+    {
+      "path": "dev/inbox/request/preview-title.md",
+      "role": "process",
+      "scope": "project",
+      "status": "open",
+      "status_class": "open",
+      "title": "Suggestion to provide a title preview function"
+    },
+    {
+      "path": "dev/plans/multiline-title.md",
+      "role": "process",
+      "scope": "project",
+      "status": "proposed",
+      "status_class": "draft",
+      "title": "Candidate plan: evaluating single-line titles"
+    },
+    {
+      "path": "dev/reviews/2026-10-28-title-input/README.md",
+      "role": "process",
+      "scope": "project",
+      "status": "active",
+      "status_class": "active",
+      "title": "Review: boundaries of title input and consistency of the documents"
+    },
+    {
+      "path": "dev/reviews/2026-10-28-title-input/r01-input-boundary.md",
+      "role": "process",
+      "scope": "project",
+      "title": "r01 Input boundaries"
+    },
+    {
+      "path": "dev/reviews/2026-10-28-title-input/r02-doc-consistency.md",
+      "role": "process",
+      "scope": "project",
+      "title": "r02 Consistency between documents and implementation"
+    },
+    {
+      "path": "dev/roadmap.md",
+      "role": "process",
+      "scope": "project",
+      "title": "Roadmap"
+    },
+    {
+      "path": "docs/INDEX.md",
+      "role": "entry",
+      "scope": "project",
+      "title": "Current knowledge"
+    },
+    {
+      "path": "docs/design.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "Project design"
+    },
+    {
+      "path": "docs/guides/maintenance.md",
+      "review_by": "2027-04-28",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "Handling title validation failures",
+      "trust": "agent-checked",
+      "verified": [
+        {
+          "at": "2026-10-28",
+          "by": "agent:kiro"
+        },
+        {
+          "at": "2026-11-02",
+          "by": "agent:sol"
+        },
+        {
+          "at": "2026-11-06",
+          "by": "agent:opus"
+        }
+      ]
+    },
+    {
+      "path": "docs/principles/product.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "Product and design principles"
+    },
+    {
+      "path": "docs/requirements.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "Project requirements"
+    },
+    {
+      "path": "docs/standards/development.md",
+      "role": "knowledge",
+      "scope": "project",
+      "title": "Development standard"
+    },
+    {
+      "path": "notes/README.md",
+      "role": "entry",
+      "scope": "notes",
+      "title": "Title module"
+    },
+    {
+      "path": "notes/docs/decisions/unicode-length.md",
+      "role": "knowledge",
+      "scope": "notes",
+      "status": "adopted",
+      "status_class": "current",
+      "title": "Decision: titles are counted by Unicode code points"
+    },
+    {
+      "path": "notes/docs/design.md",
+      "role": "knowledge",
+      "scope": "notes",
+      "title": "Title validation design"
+    },
+    {
+      "path": "notes/docs/requirements.md",
+      "role": "knowledge",
+      "scope": "notes",
+      "title": "Title validation requirements"
+    }
+  ],
+  "project_name": "NoteBox",
+  "version": 1
+}

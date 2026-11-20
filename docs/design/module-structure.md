@@ -10,10 +10,14 @@
 | `TODO.md` | 系统还没做的事 |
 | `CHANGELOG.md` | 对接入项目有影响的变化 |
 | `docs/` | 系统规范：需求、原则、设计、开发流程、写作与开发规范、接入指南、设计取舍 |
+| [`docs/en/`](../en/INDEX.md) | 规范的英文译本，目录与 `docs/` 对应，不含需求、决策和开发规范。中文页是权威正文，改中文页时同步改对应的英文页 |
 | [`scripts/wiki/`](../../scripts/wiki/README.md) | 可复制的本地文档工具。`README.md` 是入口，`reference.md` 登记配置和规则，`formats.md` 是工具读取的固定写法的权威正文；三份随工具复制，只链接本目录里的文件 |
+| `scripts/wiki/en/` | 工具说明和技能的英文译本，随工具一起复制，同样只链接 `scripts/wiki/` 里的文件 |
 | `tests/` | 文档工具的反例与行为测试 |
 | `templates/` | 接入时使用的最小模板 |
+| `templates/en/` | 英文模板，文件与中文模板一一对应，使用英文关键词 |
 | `demo/` | 独立配置、可运行的 NoteBox 参考项目，演示接入后的完整结构 |
+| `demo-en/` | NoteBox 参考项目的英文版，同样独立配置、可运行，用 `--root demo-en` 检查 |
 | `tmp/` | 讨论草稿，不进 Git，不属于规范 |
 
 本仓库没有 `dev/` 和 `archive/`：系统的开发过程不按接入项目的方式记录，变化写在提交信息和 `CHANGELOG.md`，旧版本由 Git 保存。
@@ -24,7 +28,7 @@
 
 ## 参考项目边界
 
-`demo/` 是独立项目样本，使用自己的 `docs/wiki.json`，用 `--root demo` 检查。根目录的 `docs/wiki.json` 只登记本仓库的规范文档，用来检查链接和工具说明的规则名对账，并排除 `demo/`、`templates/` 和 `tmp/`。
+`demo/` 和 `demo-en/` 是独立项目样本，各自使用自己的 `docs/wiki.json`，用 `--root demo` 和 `--root demo-en` 检查。根目录的 `docs/wiki.json` 只登记本仓库的规范文档，用来检查链接和工具说明的规则名对账，并排除 `demo/`、`demo-en/`、`templates/` 和 `tmp/`。
 
 参考项目中的模块布局不限制接入项目。已有仓库可以继续使用 `core/`、`packages/` 或其他源码布局，只需登记模块入口与文档根。
 

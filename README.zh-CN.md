@@ -68,7 +68,18 @@ python3 scripts/wiki/wiki.py check --root demo
 
 ## 语言
 
-规范、模板、技能和参考项目只有中文版。检查工具能读两种语言的文档：它读取的每个关键词和状态值都有中文和英文两种写法，例如 `状态：执行中。` 和 `Status: active.`，全部列在[工具读取的写法](scripts/wiki/formats.md)里。工具用英文报告问题，其中的示例用中文写法；`verify` 生成的验证记录是中文。
+ProjectWiki 用中文编写，中文页是权威正文。理解和接入需要的部分另有英文版：
+
+| 中文 | 英文 |
+|---|---|
+| `docs/` 下的规范 | [`docs/en/`](docs/en/INDEX.md)：设计原则、设计文档、接入指南、开发流程和写作规范 |
+| `scripts/wiki/` 下的工具说明和技能 | [`scripts/wiki/en/`](scripts/wiki/en/README.md)，随检查工具一起复制到接入项目 |
+| `templates/` 下的模板 | [`templates/en/`](templates/en/README.md)，使用英文关键词 |
+| `demo/` 里的 NoteBox 参考项目 | [`demo-en/`](demo-en/README.md) |
+
+需求、决策记录、变更记录、待办和 ProjectWiki 自身的开发约定只有中文版。英文页与中文页不一致时，以中文页为准。
+
+检查工具能读两种语言的文档：它读取的每个关键词和状态值都有中文和英文两种写法，例如 `状态：执行中。` 和 `Status: active.`，全部列在[工具读取的写法](scripts/wiki/formats.md)里。工具用英文报告问题，其中的示例用中文写法；`verify` 生成的验证记录是中文。
 
 ## 从哪里开始
 

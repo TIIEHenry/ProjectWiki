@@ -5,6 +5,7 @@
 ## 必须直接遵守的规则
 
 - 改的是系统本身。规则、模板、工具和 demo 必须一致：改一条规则时，在同一次改动中更新规范正文、`templates/` 里对应的模板和 `demo/` 里对应的示例。
+- 英文版在 `docs/en/`、`scripts/wiki/en/`、`templates/en/` 和 `demo-en/`，是中文页的译本，中文页是权威正文。改的中文页有英文版时，在同一次改动中同步对应的英文页；各目录的范围见[目录与模块结构](docs/design/module-structure.md)。
 - 规范正文写给接入项目的人和 Agent 看。用具体对象、动作、条件和结果表达，解释必要术语，删除 AI 套话、翻译腔和内部缩写。不在规范里写本仓库的开发过程。
 - 同一条规则只在一处写正文，其他地方链接过去。工具的命令写在 `scripts/wiki/README.md`，配置和规则写在 `scripts/wiki/reference.md`，工具读取的固定写法（状态行、核对行、需求条目、审查问题、待处理项、编号分配）写在 `scripts/wiki/formats.md`。这三份随工具复制到接入项目，只能链接 `scripts/wiki/` 里的文件；`docs/` 讲理由时链接它们，不重写格式。
 - 新建文档的路径不得含空格、`#`、`%` 或括号；命名细则见[文档模型](docs/design/document-model.md#文件命名)。
@@ -38,4 +39,4 @@
 python3 scripts/wiki/wiki.py verify --root .
 ```
 
-它依次运行 `docs/wiki.json` 里登记的工具测试、demo 测试、本仓库规范文档的 `check`、demo 和项目模板的 `check`，以及 demo 生成目录的 `index --check`。只需要其中几项时写名称，例如 `verify tests check`。根目录的 `docs/wiki.json` 只用来检查本仓库规范文档的链接和规则名对账，不代表本仓库是接入项目。开发规范见[开发规范](docs/standards/development.md)。
+它依次运行 `docs/wiki.json` 里登记的工具测试、demo 测试、本仓库规范文档的 `check`、demo 和项目模板的 `check`，以及 demo 生成目录的 `index --check`；demo 和项目模板的各项，中文版和英文版都运行。只需要其中几项时写名称，例如 `verify tests check`。根目录的 `docs/wiki.json` 只用来检查本仓库规范文档的链接和规则名对账，不代表本仓库是接入项目。开发规范见[开发规范](docs/standards/development.md)。

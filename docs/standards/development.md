@@ -26,11 +26,11 @@
 python3 scripts/wiki/wiki.py verify --root .
 ```
 
-验证命令只登记在 [`docs/wiki.json`](../wiki.json) 的 `verify` 里：工具测试、demo 测试、本仓库规范文档、demo 和项目模板的 `check`，以及 demo 生成目录的 `index --check`。只需要其中几项时写名称，例如 `verify tests check`。
+验证命令只登记在 [`docs/wiki.json`](../wiki.json) 的 `verify` 里：工具测试、demo 测试、本仓库规范文档、demo 和项目模板的 `check`，以及 demo 生成目录的 `index --check`；demo 和项目模板的各项，中文版和英文版都运行。只需要其中几项时写名称，例如 `verify tests check`。
 
 工具行为变更需要运行相关反例测试；配置或目录变更需要检查实际接入范围；模板变化需要在临时目录复制验证。仅修改文字时，检查引用与表达即可，不重复运行无关代码测试。
 
-行为、接口或目录职责变化时，原位更新对应规范，同一次改动里同步模板和 demo。规范没有变化时，不为形式完整而新增文档。
+行为、接口或目录职责变化时，原位更新对应规范，同一次改动里同步模板和 demo；被改的页面有英文版时，同步对应的英文页（范围见[目录与模块结构](../design/module-structure.md)）。规范没有变化时，不为形式完整而新增文档。
 
 ## 验证记录
 

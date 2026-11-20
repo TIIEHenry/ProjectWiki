@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "project_name": "[TODO: project name]",
+  "roots": [
+    {
+      "path": "docs",
+      "role": "knowledge"
+    },
+    {
+      "path": "dev",
+      "role": "process"
+    },
+    {
+      "path": "archive",
+      "role": "archive"
+    }
+  ],
+  "modules": [],
+  "entrypoints": [
+    "README.md",
+    "AGENTS.md",
+    "docs/INDEX.md",
+    "dev/INDEX.md"
+  ],
+  "pages": [
+    {
+      "path": "AGENTS.md",
+      "role": "entry",
+      "max_chars": 16000
+    }
+  ],
+  "exclude": [
+    ".git/**",
+    "**/__pycache__/**",
+    "scripts/wiki/**"
+  ],
+  "dir_budgets": {
+    "dev/*": 50,
+    "dev/plans": 30,
+    "dev/inbox/*": 30,
+    "dev/reviews/*": 20
+  },
+  "requirements": {
+    "files": [
+      "docs/overview.md",
+      "docs/requirements/*.md"
+    ],
+    "tests": [
+      "tests/*",
+      "*/tests/*"
+    ]
+  },
+  "verify": {
+    "commands": [
+      {
+        "name": "check",
+        "run": [
+          "python3",
+          "scripts/wiki/wiki.py",
+          "check",
+          "--root",
+          "."
+        ],
+        "summary_lines": 1,
+        "summary_from": "start"
+      }
+    ]
+  }
+}

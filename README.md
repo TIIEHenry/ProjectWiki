@@ -26,7 +26,7 @@ After adoption, a project keeps three kinds of material apart: what is true now,
 | `archive/` | Finished process material and whole documents that no longer apply, kept at their original relative paths |
 | `<module>/README.md`, `<module>/docs/` | A module's entry page and the knowledge that belongs only to that module, kept next to its source |
 
-`docs/`, `dev/`, and `archive/` sit side by side at the root. The [NoteBox reference project](demo/README.md) shows the complete layout. This repository is the documentation system itself and does not work like an adopting project: it has no `dev/` or `archive/`, and its root holds the specification, the templates, the checker, and the tests.
+`docs/`, `dev/`, and `archive/` sit side by side at the root. The [NoteBox reference project](demo-en/README.md) shows the complete layout. This repository is the documentation system itself and does not work like an adopting project: it has no `dev/` or `archive/`, and its root holds the specification, the templates, the checker, and the tests.
 
 ## The rules in brief
 
@@ -37,7 +37,7 @@ After adoption, a project keeps three kinds of material apart: what is true now,
 - The number of documents is kept down. New content goes into a section of an existing file unless it has its own lifecycle or several people need to write it at the same time. A kind of record that takes one file per item, such as the inbox, must also define how each item is closed.
 - Process scales with impact. An ordinary fix can change only code and tests and give its reasoning in the commit message. Design notes, plans, and decision records are added when there is a significant trade-off, a contract change across modules, a data migration, or a handoff.
 
-The reasoning behind these rules is in the [design principles](docs/principles/document-system.md).
+The reasoning behind these rules is in the [design principles](docs/en/principles/document-system.md).
 
 ## The checker
 
@@ -57,30 +57,39 @@ An adopting project copies the whole `scripts/wiki/` directory. Besides the chec
 From the root of this repository, run the checker on the reference project:
 
 ```bash
-python3 scripts/wiki/wiki.py check --root demo
+python3 scripts/wiki/wiki.py check --root demo-en
 ```
 
 The output begins with `check: passed (0 errors, 0 warnings)`.
 
 ## Adopt it in a project
 
-Adoption starts small. Choose one feature change and one maintenance task in the project, and build only the pages those two tasks need. Documents that are still valid are registered where they are; they do not have to be moved or rewritten first. The steps are in the [adoption guide](docs/guides/adoption.md). A coding agent can carry them out by following the [adoption skill](scripts/wiki/skills/adopt-projectwiki/SKILL.md): tell it where this repository is and which project to adopt.
+Adoption starts small. Choose one feature change and one maintenance task in the project, and build only the pages those two tasks need. Documents that are still valid are registered where they are; they do not have to be moved or rewritten first. The steps are in the [adoption guide](docs/en/guides/adoption.md). A coding agent can carry them out by following the [adoption skill](scripts/wiki/en/skills/adopt-projectwiki/SKILL.md): tell it where this repository is and which project to adopt.
 
 ## Language
 
-The specification, the templates, the agent skills, and the reference project are written in Chinese and have not been translated. The checker reads documents in either language: every keyword and status value has a Chinese form and an English form, for example `状态：执行中。` and `Status: active.`, and both are listed in the [format reference](scripts/wiki/formats.md). It reports its findings in English, but the examples inside them use the Chinese forms, and the record that `verify` writes is in Chinese.
+ProjectWiki is written in Chinese, and the Chinese pages are the authoritative text. The parts needed to understand and adopt it also have English versions:
+
+| Chinese | English |
+|---|---|
+| The specification under `docs/` | [`docs/en/`](docs/en/INDEX.md): the design principles, the design pages, the adoption guide, the development workflow, and the writing standard |
+| The tool pages and agent skills under `scripts/wiki/` | [`scripts/wiki/en/`](scripts/wiki/en/README.md), copied into an adopting project together with the checker |
+| The templates under `templates/` | [`templates/en/`](templates/en/README.md), written with the English keywords |
+| The NoteBox reference project in `demo/` | [`demo-en/`](demo-en/README.md) |
+
+The requirements, the decision records, the changelog, the to-do list, and the conventions for developing ProjectWiki itself exist only in Chinese. Where an English page and its Chinese page differ, the Chinese page applies.
+
+The checker reads documents in either language: every keyword and status value has a Chinese form and an English form, for example `状态：执行中。` and `Status: active.`, and both are listed in the [format reference](scripts/wiki/en/formats.md). It reports its findings in English, but the examples inside them use the Chinese forms, and the record that `verify` writes is in Chinese.
 
 ## Where to start
 
-The pages below are in Chinese.
-
 | If you want to | Read |
 |---|---|
-| Understand the reasoning behind the rules | [Design principles](docs/principles/document-system.md) |
-| Adopt ProjectWiki in a project | [Adoption guide](docs/guides/adoption.md), [adoption skill](scripts/wiki/skills/adopt-projectwiki/SKILL.md) |
-| See a complete example | [NoteBox reference project](demo/README.md) |
-| Learn what goes into decision records, plans, roadmaps, and reviews | [Development workflow](docs/guides/workflow.md) |
-| Write or review a document | [Writing standard for Chinese technical documents](docs/standards/writing.md) |
-| Run the checker or look up a rule | [Checker commands](scripts/wiki/README.md), [configuration and rules](scripts/wiki/reference.md), [formats the checker reads](scripts/wiki/formats.md) |
-| Find any page of the specification | [Specification index](docs/INDEX.md) |
-| Change ProjectWiki itself | [Development conventions](AGENTS.md), [to-do list](TODO.md), [changelog](CHANGELOG.md) |
+| Understand the reasoning behind the rules | [Design principles](docs/en/principles/document-system.md) |
+| Adopt ProjectWiki in a project | [Adoption guide](docs/en/guides/adoption.md), [adoption skill](scripts/wiki/en/skills/adopt-projectwiki/SKILL.md) |
+| See a complete example | [NoteBox reference project](demo-en/README.md) |
+| Learn what goes into decision records, plans, roadmaps, and reviews | [Development workflow](docs/en/guides/workflow.md) |
+| Write or review a document | [Writing standard for Chinese technical documents](docs/en/standards/writing.md) |
+| Run the checker or look up a rule | [Checker commands](scripts/wiki/en/README.md), [configuration and rules](scripts/wiki/en/reference.md), [formats the checker reads](scripts/wiki/en/formats.md) |
+| Find any page of the specification | [Specification index](docs/en/INDEX.md) |
+| Change ProjectWiki itself | [Development conventions](AGENTS.md), [to-do list](TODO.md), [changelog](CHANGELOG.md), all in Chinese |
