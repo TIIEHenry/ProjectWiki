@@ -22,6 +22,6 @@ This is the specification of the documentation system itself: how an adopting pr
 | Changing the code, templates, or examples of ProjectWiki | [Development standard](../standards/development.md) (in Chinese) |
 | Adopting this system in an existing project | [Adoption guide](guides/adoption.md) |
 | Creating new content from a template | [Template notes](../../templates/en/README.md) |
-| Looking up how status lines, verification lines, requirement entries, and review findings are written, and how IDs are assigned | [Forms the tool reads](../../scripts/wiki/en/formats.md) |
+| Looking up how status lines, verification lines, requirement entries, and review findings are written, and how IDs are assigned | [Formats the checker reads](../../scripts/wiki/en/formats.md) |
 
 The specification is edited in place, and old versions are kept by Git. What has not been done yet is in the [to-do list](../../TODO.md) (in Chinese), and version changes are in the [changelog](../../CHANGELOG.md) (in Chinese).
