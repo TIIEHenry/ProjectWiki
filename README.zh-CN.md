@@ -93,3 +93,7 @@ ProjectWiki 用中文编写，中文页是权威正文。理解和接入需要�
 | 运行检查工具或查一条规则 | [工具入口](scripts/wiki/README.md)、[配置与规则](scripts/wiki/reference.md)、[工具读取的写法](scripts/wiki/formats.md) |
 | 查找全部规范文档 | [规范导航](docs/INDEX.md) |
 | 修改 ProjectWiki 本身 | [开发约定](AGENTS.md)、[待办](TODO.md)、[变更记录](CHANGELOG.md) |
+
+## 许可证
+
+ProjectWiki 以 [MIT 许可证](LICENSE)发布。

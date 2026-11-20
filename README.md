@@ -93,3 +93,7 @@ The checker reads documents in either language: every keyword and status value h
 | Run the checker or look up a rule | [Checker commands](scripts/wiki/en/README.md), [configuration and rules](scripts/wiki/en/reference.md), [formats the checker reads](scripts/wiki/en/formats.md) |
 | Find any page of the specification | [Specification index](docs/en/INDEX.md) |
 | Change ProjectWiki itself | [Development conventions](AGENTS.md), [to-do list](TODO.md), [changelog](CHANGELOG.md), all in Chinese |
+
+## License
+
+ProjectWiki is released under the [MIT License](LICENSE).
