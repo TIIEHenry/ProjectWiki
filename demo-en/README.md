@@ -1,5 +1,7 @@
 # NoteBox example project
 
+> 中文版：ProjectWiki 仓库里的 `demo/`。
+
 NoteBox provides title validation for notes. The example contains a small runnable module, and the relationships among requirements, principles, design, development records, and the archive. It serves to demonstrate the documentation system and provides no persistence or network service.
 
 - To look up current knowledge: start from the [knowledge entry](docs/INDEX.md).

@@ -1,5 +1,7 @@
 # 可复制模板
 
+> English version: [Copyable templates](en/README.md).
+
 先复制 `project/` 内的文件到目标仓库，替换所有 `【待填：…】`，删除不适用内容，再填写 `docs/wiki.json`。模板配置的 `verify` 只登记了文档检查，复制 `scripts/wiki/` 后就能运行 `verify`；项目自己的测试和构建命令按[接入指南](../docs/guides/adoption.md#11-登记验证命令与对账)补上。模板配置不含 `remind`，因为代码与文档的对应关系只能按目标项目填写；按[接入指南](../docs/guides/adoption.md#8-设置文档同步提醒)补上，并安装 Git 钩子。在真实模块旁按需复制 `module/`，把模块路径登记到配置中。归档根 `archive/` 可在首次归档时建立。
 
 首次接入或补齐未完成的接入，可按[接入技能](../scripts/wiki/skills/adopt-projectwiki/SKILL.md)处理用户指定的目标项目。首次从源仓库打开；复制完整 `scripts/wiki/` 后可从目标项目本地打开，源仓库仍提供按需读取的模板与完整接入指南。

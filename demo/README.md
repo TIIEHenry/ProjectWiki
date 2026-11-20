@@ -1,5 +1,7 @@
 # NoteBox 示例项目
 
+> English version: `demo-en/` in the ProjectWiki repository.
+
 NoteBox 为笔记提供标题校验。示例包含可运行的小模块，以及需求、原则、设计、开发记录和归档之间的关系。它用于演示文档系统，未提供持久化或网络服务。
 
 - 查当前知识：从 [知识入口](docs/INDEX.md) 开始。
