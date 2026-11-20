@@ -6,6 +6,14 @@ ProjectWiki 是一套放进代码仓库的文档系统，供开发者和编码 A
 
 本仓库本身不按这套结构运转：根目录只有规范、模板、工具和测试。
 
+中文介绍，2 分 46 秒。
+
+https://github.com/user-attachments/assets/df0ff5c5-ed0a-4155-8e2e-a23cac87e7be
+
+英文介绍，2 分 46 秒。
+
+https://github.com/user-attachments/assets/2fd09db3-88b2-48fd-bfba-666e4d086294
+
 ## 从哪里开始
 
 | 你要做什么 | 阅读入口 |
