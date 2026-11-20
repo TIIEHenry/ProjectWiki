@@ -7,7 +7,7 @@
   "modules": [
     {"name": "wiki", "path": "scripts/wiki", "entry": "scripts/wiki/README.md"}
   ],
-  "entrypoints": ["README.md", "AGENTS.md", "CLAUDE.md", "TODO.md", "CHANGELOG.md", "docs/INDEX.md"],
+  "entrypoints": ["README.md", "README.zh-CN.md", "AGENTS.md", "CLAUDE.md", "TODO.md", "CHANGELOG.md", "docs/INDEX.md"],
   "pages": [
     {"path": "AGENTS.md", "role": "entry", "max_chars": 6000},
     {"path": "docs/INDEX.md", "role": "entry", "max_chars": 4000},

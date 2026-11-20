@@ -1,37 +1,86 @@
 # ProjectWiki
 
-ProjectWiki 是一套放进代码仓库的文档系统，供开发者和编码 Agent 共同使用。它包括：组织文档的规范、接入步骤、可复制的模板，以及一个只依赖 Python 标准库的检查工具。
+**English** · [中文](README.zh-CN.md)
 
-接入后的项目使用三个并列目录：`docs/` 保存需求、原则、设计和规范；`dev/` 组织开发流程与工作记录；`archive/` 保存已结束的过程材料及整体失效的文档。模块内部知识放在模块自己的 `docs/` 中。完整的例子见 [NoteBox 参考项目](demo/README.md)。
+ProjectWiki is a documentation system that lives in a project's code repository and is shared by its developers and coding agents. It includes rules for organizing documents, steps for adopting them, templates to copy, and a checker that depends only on the Python standard library.
 
-本仓库本身不按这套结构运转：根目录只有规范、模板、工具和测试。
+It is meant for the situations in which people and agents depend on a project's documents: a new team member learning the project, an agent locating the code to change, a developer maintaining interfaces and design, a collaborator picking up unfinished work, and a maintainer tracing why a decision was made. The project can be a single-module tool or a repository that combines several build systems.
 
-中文介绍，2 分 46 秒。
-
-https://github.com/user-attachments/assets/df0ff5c5-ed0a-4155-8e2e-a23cac87e7be
-
-英文介绍，2 分 46 秒。
+English introduction, 2 min 46 s.
 
 https://github.com/user-attachments/assets/2fd09db3-88b2-48fd-bfba-666e4d086294
 
-## 从哪里开始
+Chinese introduction, 2 min 46 s.
 
-| 你要做什么 | 阅读入口 |
+https://github.com/user-attachments/assets/df0ff5c5-ed0a-4155-8e2e-a23cac87e7be
+
+## Layout after adoption
+
+After adoption, a project keeps three kinds of material apart: what is true now, the records of work in progress, and history.
+
+| Path | What it holds |
 |---|---|
-| 理解这套文档系统 | [设计原则](docs/principles/document-system.md) |
-| 给一个项目接入 | [接入指南](docs/guides/adoption.md)、[接入技能](scripts/wiki/skills/adopt-projectwiki/SKILL.md) |
-| 看一个完整实例 | [NoteBox 参考项目](demo/README.md) |
-| 理解 ADR、计划、路线图和审查的分工 | [开发流程](docs/guides/workflow.md) |
-| 创建或审查文档 | [中文技术文档规范](docs/standards/writing.md) |
-| 查找全部规范文档 | [规范导航](docs/INDEX.md) |
-| 修改 ProjectWiki 本身 | [开发约定](AGENTS.md)、[待办](TODO.md)、[变更记录](CHANGELOG.md) |
+| `AGENTS.md` | Hard rules for the whole project, and a table that routes each kind of task to the pages to read |
+| `docs/` | Current knowledge: requirements, principles, design, standards, guides, and decision records. Edited in place |
+| `dev/` | The development process: roadmap, plans, reviews, and inbox items |
+| `archive/` | Finished process material and whole documents that no longer apply, kept at their original relative paths |
+| `<module>/README.md`, `<module>/docs/` | A module's entry page and the knowledge that belongs only to that module, kept next to its source |
 
-## 检查示例
+`docs/`, `dev/`, and `archive/` sit side by side at the root. The [NoteBox reference project](demo/README.md) shows the complete layout. This repository is the documentation system itself and does not work like an adopting project: it has no `dev/` or `archive/`, and its root holds the specification, the templates, the checker, and the tests.
 
-需要 Python 3.10 或更新版本。在本仓库根目录检查参考项目：
+## The rules in brief
+
+- Current knowledge, process records, and history are kept apart. A requirement that is confirmed but not yet implemented is still knowledge, and the progress of a task does not change what the requirement says.
+- Context is supplied in layers, by task. The project entry gives the hard rules and a reading route, a module entry gives the module's responsibility and contracts, topic pages give the details, and source and tests settle what the code actually does. A project sets a character budget for its entry pages, and the checker fails a page that exceeds its budget.
+- Each topic has one authoritative page. Other pages link to it instead of restating it. A project-wide rule that causes errors when ignored is also written directly in `AGENTS.md`, so that following it does not depend on an agent opening a link.
+- Current knowledge is edited in place, and Git keeps the revisions. A document is archived only when the work it records has ended or the document as a whole has stopped applying.
+- The number of documents is kept down. New content goes into a section of an existing file unless it has its own lifecycle or several people need to write it at the same time. A kind of record that takes one file per item, such as the inbox, must also define how each item is closed.
+- Process scales with impact. An ordinary fix can change only code and tests and give its reasoning in the commit message. Design notes, plans, and decision records are added when there is a significant trade-off, a contract change across modules, a data migration, or a handoff.
+
+The reasoning behind these rules is in the [design principles](docs/principles/document-system.md).
+
+## The checker
+
+`scripts/wiki/wiki.py` is a single Python file. It runs on Python 3.10 or newer without third-party packages; checking staged content and commit reminders also need Git. A project registers its document roots, entry pages, modules, and page budgets in `docs/wiki.json`, and the checker works from that configuration.
+
+- `check` verifies that registered entry pages exist, that local links and anchors resolve, that pages stay within their budgets, and that status lines, requirement entries, and review records follow the formats it reads. When a project registers its requirements, `check` also counts the acceptance items that a test refers to by ID and warns about items of implemented requirements that have neither a test nor a manual-verification mark.
+- The Git hooks run `check` on the staged snapshot. At commit time, `remind` points out code that has changed while the documents registered for it have not. The reminder relies only on Git, so it appears with any agent tool and with a manual `git commit`.
+- `archive` and `move` show a preview first, then apply the change and rewrite the affected links.
+- `baseline` records the problems an old repository already has, so that only new problems fail.
+
+The checker does not judge whether the design or business conclusions in a page are correct. A run that cannot complete its checks is reported as incomplete, not as passed. The checker writes files only when a command asks for it (`archive --apply`, `move --apply`, `index --write`, `export-okf`), and `verify` runs the commands the project has registered. It does not stage or commit, and the Git hooks do not change files.
+
+An adopting project copies the whole `scripts/wiki/` directory. Besides the checker, it carries the Git hooks, the pages that document commands, rules, and formats, and skills that guide an agent through tasks such as adoption and reviewing documents against the implementation.
+
+## Try it
+
+From the root of this repository, run the checker on the reference project:
 
 ```bash
 python3 scripts/wiki/wiki.py check --root demo
 ```
 
-命令见[工具入口](scripts/wiki/README.md)，配置和规则见[配置与规则](scripts/wiki/reference.md)，状态行和需求条目等固定写法见[工具读取的写法](scripts/wiki/formats.md)。工具只在明确要求时写文件（`archive --apply`、`index --write`、`export-okf`），不暂存、不提交，Git 钩子也不改文件。
+The output begins with `check: passed (0 errors, 0 warnings)`.
+
+## Adopt it in a project
+
+Adoption starts small. Choose one feature change and one maintenance task in the project, and build only the pages those two tasks need. Documents that are still valid are registered where they are; they do not have to be moved or rewritten first. The steps are in the [adoption guide](docs/guides/adoption.md). A coding agent can carry them out by following the [adoption skill](scripts/wiki/skills/adopt-projectwiki/SKILL.md): tell it where this repository is and which project to adopt.
+
+## Language
+
+The specification, the templates, the agent skills, and the reference project are written in Chinese and have not been translated. The checker reads documents in either language: every keyword and status value has a Chinese form and an English form, for example `状态：执行中。` and `Status: active.`, and both are listed in the [format reference](scripts/wiki/formats.md). It reports its findings in English, but the examples inside them use the Chinese forms, and the record that `verify` writes is in Chinese.
+
+## Where to start
+
+The pages below are in Chinese.
+
+| If you want to | Read |
+|---|---|
+| Understand the reasoning behind the rules | [Design principles](docs/principles/document-system.md) |
+| Adopt ProjectWiki in a project | [Adoption guide](docs/guides/adoption.md), [adoption skill](scripts/wiki/skills/adopt-projectwiki/SKILL.md) |
+| See a complete example | [NoteBox reference project](demo/README.md) |
+| Learn what goes into decision records, plans, roadmaps, and reviews | [Development workflow](docs/guides/workflow.md) |
+| Write or review a document | [Writing standard for Chinese technical documents](docs/standards/writing.md) |
+| Run the checker or look up a rule | [Checker commands](scripts/wiki/README.md), [configuration and rules](scripts/wiki/reference.md), [formats the checker reads](scripts/wiki/formats.md) |
+| Find any page of the specification | [Specification index](docs/INDEX.md) |
+| Change ProjectWiki itself | [Development conventions](AGENTS.md), [to-do list](TODO.md), [changelog](CHANGELOG.md) |
