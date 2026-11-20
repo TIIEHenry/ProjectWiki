@@ -17,6 +17,7 @@ This is the specification of the documentation system itself: how an adopting pr
 | Understanding how requirement IDs run through design, plans, and tests | [Requirement traceability decision](../decisions/requirement-traceability.md) (in Chinese) |
 | Understanding the trade-offs of verification records, review-by dates, and OKF export | [Verification record and OKF decision](../decisions/verification-line-and-okf.md) (in Chinese) |
 | Understanding which steps are handed to the tool and which are still judged by people or agents | [Decision on automating mechanical steps](../decisions/automation-writes.md) (in Chinese) |
+| Understanding how links to other repositories are written, registered, and checked | [Cross-repository links decision](../decisions/cross-repo-links.md) (in Chinese) |
 | Creating or reviewing Chinese technical documents | [Writing standard](standards/writing.md) |
 | Changing the code, templates, or examples of ProjectWiki | [Development standard](../standards/development.md) (in Chinese) |
 | Adopting this system in an existing project | [Adoption guide](guides/adoption.md) |

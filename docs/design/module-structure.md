@@ -11,7 +11,7 @@
 | `CHANGELOG.md` | 对接入项目有影响的变化 |
 | `docs/` | 系统规范：需求、原则、设计、开发流程、写作与开发规范、接入指南、设计取舍 |
 | [`docs/en/`](../en/INDEX.md) | 规范的英文译本，目录与 `docs/` 对应，不含需求、决策和开发规范。中文页是权威正文，改中文页时同步改对应的英文页 |
-| [`scripts/wiki/`](../../scripts/wiki/README.md) | 可复制的本地文档工具。`README.md` 是入口，`reference.md` 登记配置和规则，`formats.md` 是工具读取的固定写法的权威正文；三份随工具复制，只链接本目录里的文件 |
+| [`scripts/wiki/`](../../scripts/wiki/README.md) | 可复制的本地文档工具。`README.md` 是入口，`reference.md` 登记配置和规则，`formats.md` 是工具读取的固定写法的权威正文，`workflow.md` 写工具拦不住的开发流程规则；四份随工具复制，只链接本目录里的文件 |
 | `scripts/wiki/en/` | 工具说明和技能的英文译本，随工具一起复制，同样只链接 `scripts/wiki/` 里的文件 |
 | `tests/` | 文档工具的反例与行为测试 |
 | `templates/` | 接入时使用的最小模板 |

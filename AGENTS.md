@@ -7,7 +7,7 @@
 - 改的是系统本身。规则、模板、工具和 demo 必须一致：改一条规则时，在同一次改动中更新规范正文、`templates/` 里对应的模板和 `demo/` 里对应的示例。
 - 英文版在 `docs/en/`、`scripts/wiki/en/`、`templates/en/` 和 `demo-en/`，是中文页的译本，中文页是权威正文。改的中文页有英文版时，在同一次改动中同步对应的英文页；各目录的范围见[目录与模块结构](docs/design/module-structure.md)。
 - 规范正文写给接入项目的人和 Agent 看。用具体对象、动作、条件和结果表达，解释必要术语，删除 AI 套话、翻译腔和内部缩写。不在规范里写本仓库的开发过程。
-- 同一条规则只在一处写正文，其他地方链接过去。工具的命令写在 `scripts/wiki/README.md`，配置和规则写在 `scripts/wiki/reference.md`，工具读取的固定写法（状态行、核对行、需求条目、审查问题、待处理项、编号分配）写在 `scripts/wiki/formats.md`。这三份随工具复制到接入项目，只能链接 `scripts/wiki/` 里的文件；`docs/` 讲理由时链接它们，不重写格式。
+- 同一条规则只在一处写正文，其他地方链接过去。工具的命令写在 `scripts/wiki/README.md`，配置和规则写在 `scripts/wiki/reference.md`，工具读取的固定写法（状态行、核对行、需求条目、审查问题、待处理项、编号分配）写在 `scripts/wiki/formats.md`，工具拦不住的开发流程规则写在 `scripts/wiki/workflow.md`。这四份随工具复制到接入项目，只能链接 `scripts/wiki/` 里的文件；`docs/` 讲理由时链接它们，不重写格式。
 - 新建文档的路径不得含空格、`#`、`%` 或括号；命名细则见[文档模型](docs/design/document-model.md#文件命名)。
 - 系统行为变化时，在同一次改动中更新 `docs/requirements/projectwiki.md` 里对应的需求条目。测试在说明文字里写验收编号。
 - 推翻 `docs/decisions/` 里已有的设计取舍时，新增或改写对应的决策记录，并同步仍描述旧结论的规范正文。普通修改不写决策记录。

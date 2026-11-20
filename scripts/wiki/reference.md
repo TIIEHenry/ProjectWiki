@@ -8,7 +8,7 @@
 
 `--json` 输出结构化报告；`baseline` 和不带选项的 `index` 本来就向标准输出打印 JSON。若配置声明了 `generated_index`，`index --check` 比较该文件与当前目录结果，文件不存在或内容不同时报告 `index-outdated` 并失败；`index --write` 把结果写进这个文件，内容没变时不动文件，报告里的 `written` 说明是否改动。相同输入产生相同目录，不加入运行日期。
 
-只有 `archive --apply`、`index --write` 和 `export-okf` 会写文件，`verify` 会运行配置里登记的命令；其余命令只读。
+只有 `archive --apply`、`move --apply`、`index --write` 和 `export-okf` 会写文件，`verify` 会运行配置里登记的命令；其余命令只读。
 
 ## 配置
 
@@ -388,15 +388,20 @@ python3 scripts/wiki/wiki.py archive dev/plans/finished-work.md --root . --apply
 | 规则 | 级别 | 含义 |
 |---|---|---|
 | `archive-unsafe-path` | 错误 | 源、目标或改写路径含符号链接或越出项目根 |
-| `archive-after-check-failed` | 错误 | 文件已经写入，但执行后的检查无法运行；报告保留已完成的写入 |
 | `archive-collision` | 错误 | 目的地已存在（包括空目录），或目的地的某一级上级路径是文件；即使字节相同也不覆盖 |
 | `archive-plan-changed` | 错误 | 计划哈希与 `--expect` 不同，要改写的文件在读取后又变了，或归档目录里有文件被增加、删除或修改；重新预览 |
 | `archive-index-unavailable` | 错误 | 给了 `--summary`，但历史索引不存在、没有表格，或说明不是一行 |
 | `archive-not-applied` | 错误 | 计划里有错误或 `archive-rewrite-manual`，所以没有执行 |
 | `archive-rewrite-manual` | 警告 | 某个链接写法无法机械改写（转义字符、百分号编码、同一行无法区分），需要手工修改；有这一项时 `--apply` 拒绝 |
 | `archive-prepare-failed` | 错误 | 准备临时改写文件失败，移动尚未开始 |
+
+下列情况出现在提交阶段开始之后，工作区可能已经改动，按报告核对：
+
+| 规则 | 级别 | 含义 |
+|---|---|---|
 | `archive-apply-failed` | 错误 | 提交阶段失败，工具已尝试回滚 |
 | `archive-rollback-failed` | 错误 | 回滚没有全部完成，需要按报告检查并手工处理工作区 |
+| `archive-after-check-failed` | 错误 | 文件已经写入，但执行后的检查无法运行；报告保留已完成的写入 |
 
 预览和执行还会报告这些情况，但不阻止执行：
 

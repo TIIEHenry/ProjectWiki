@@ -15,6 +15,7 @@
 | 了解需求编号怎样贯穿设计、计划和测试 | [需求追踪决策](decisions/requirement-traceability.md) |
 | 了解核对记录、复核期限和 OKF 导出的取舍 | [核对记录与 OKF 决策](decisions/verification-line-and-okf.md) |
 | 了解哪些步骤交给工具执行、哪些仍由人或 Agent 判断 | [机械步骤自动化决策](decisions/automation-writes.md) |
+| 了解指向其他仓库的链接怎样写、怎样登记和检查 | [跨仓库链接决策](decisions/cross-repo-links.md) |
 | 创建或审查中文技术文档 | [写作规范](standards/writing.md) |
 | 修改 ProjectWiki 的代码、模板或示例 | [开发规范](standards/development.md) |
 | 给现有项目接入这套系统 | [接入指南](guides/adoption.md) |

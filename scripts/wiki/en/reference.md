@@ -10,7 +10,7 @@ This page lists the configuration fields, the meaning and severity of every rule
 
 `--json` prints a structured report; `baseline`, and `index` without options, print JSON to standard output anyway. When the configuration declares `generated_index`, `index --check` compares that file with the current index result, and reports `index-outdated` and fails when the file is missing or differs. `index --write` writes the result to the file; when the content has not changed it leaves the file alone, and `written` in the report says whether the file was changed. The same input produces the same index, and no run date is added.
 
-Only `archive --apply`, `index --write`, and `export-okf` write files, and `verify` runs the commands registered in the configuration; the other commands only read.
+Only `archive --apply`, `move --apply`, `index --write`, and `export-okf` write files, and `verify` runs the commands registered in the configuration; the other commands only read.
 
 ## Configuration
 
@@ -390,15 +390,20 @@ The following cases are refused, and no file is written:
 | Rule | Severity | Meaning |
 |---|---|---|
 | `archive-unsafe-path` | Error | The source, the destination, or a path to be rewritten contains a symbolic link or leaves the project root |
-| `archive-after-check-failed` | Error | The files have been written, but the check after applying could not be run; the report keeps the completed writes |
 | `archive-collision` | Error | The destination already exists (including an empty directory), or some parent path of the destination is a file; nothing is overwritten even when the bytes are identical |
 | `archive-plan-changed` | Error | The plan hash differs from `--expect`, a file to be rewritten changed after it was read, or files in the archived directory were added, deleted, or modified; preview again |
 | `archive-index-unavailable` | Error | `--summary` was given, but the history index does not exist, has no table, or the description is not a single line |
 | `archive-not-applied` | Error | The plan contains errors or `archive-rewrite-manual`, so it was not applied |
 | `archive-rewrite-manual` | Warning | A link is written in a way that cannot be rewritten mechanically (escaped characters, percent-encoding, links that cannot be told apart on the same line) and has to be changed by hand; with this item present, `--apply` refuses |
 | `archive-prepare-failed` | Error | Preparing the temporary rewritten files failed; the move has not started |
+
+The following cases arise after the commit phase has started; the working tree may already have been changed, so check it against the report:
+
+| Rule | Severity | Meaning |
+|---|---|---|
 | `archive-apply-failed` | Error | The commit phase failed; the tool has attempted a rollback |
 | `archive-rollback-failed` | Error | The rollback did not complete; check the working tree against the report and fix it by hand |
+| `archive-after-check-failed` | Error | The files have been written, but the check after applying could not be run; the report keeps the completed writes |
 
 The preview and the apply step also report the following, which do not block applying:
 
