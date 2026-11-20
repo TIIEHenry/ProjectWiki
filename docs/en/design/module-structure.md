@@ -11,7 +11,7 @@ This page describes the directories of the ProjectWiki repository itself. For th
 | `AGENTS.md` | The rules that must be followed when developing this system, and the reading routes |
 | `TODO.md` | What the system has not done yet |
 | `CHANGELOG.md` | Changes that affect adopting projects |
-| `LICENSE` | The text of the MIT License and the copyright notice |
+| `LICENSE` | The text of the MIT License and the copyright notice. `scripts/wiki/LICENSE` is an identical copy, which goes into adopting projects with the tool; when one is changed, change the other at the same time |
 | `docs/` | The specification of the system: requirements, principles, design, development workflow, writing and development standards, adoption guide, design trade-offs |
 | [`docs/en/`](../INDEX.md) | The English translation of the specification, with directories matching `docs/`, without the requirements, the decisions, and the development standard. The Chinese page is authoritative; when a Chinese page is changed, change the matching English page as well |
 | [`scripts/wiki/`](../../../scripts/wiki/en/README.md) | The copyable local documentation tool. `README.md` is the entry, `reference.md` registers the configuration and the rules, `formats.md` is the authoritative text of the fixed formats the tool reads, and `workflow.md` holds the development workflow rules that the tool cannot enforce; the four are copied with the tool and link only to files in this directory |

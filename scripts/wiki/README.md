@@ -20,6 +20,8 @@
 | 沉淀开发经验、排障技巧或已确认结论 | [知识沉淀技能](skills/capture-knowledge/SKILL.md) |
 | 用户要求同步文档并提交、收尾提交 | [同步文档与提交技能](skills/sync-docs-and-commit/SKILL.md) |
 
+工具以 MIT 许可证发布，许可证正文和版权声明在 [`scripts/wiki/LICENSE`](LICENSE)；复制工具时保留这个文件。
+
 ## 常用命令
 
 在项目根目录运行：

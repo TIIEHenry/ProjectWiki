@@ -20,6 +20,8 @@ During adoption, copy the whole `scripts/wiki/` directory into the target reposi
 | Recording development experience, troubleshooting techniques, or confirmed conclusions | [Knowledge capture skill](skills/capture-knowledge/SKILL.md) |
 | The user asks to sync the documents and commit, or to make a closing commit | [Sync-docs-and-commit skill](skills/sync-docs-and-commit/SKILL.md) |
 
+The tool is released under the MIT License; the license text and the copyright notice are in [`scripts/wiki/LICENSE`](../LICENSE). Keep that file when you copy the tool.
+
 ## Common commands
 
 Run from the project root:

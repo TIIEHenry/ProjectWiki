@@ -6,7 +6,7 @@
 
 ## 未发布
 
-- 新增 `LICENSE`：ProjectWiki 以 MIT 许可证发布。
+- 新增 `LICENSE`：ProjectWiki 以 MIT 许可证发布。`scripts/wiki/` 里有内容相同的一份，升级时复制整个 `scripts/wiki/` 会带上它，接入项目保留这个文件，不用改配置。
 
 - 新增英文版，中文页仍是权威正文：规范的译本在 `docs/en/`，工具说明和技能在 `scripts/wiki/en/`，模板在 `templates/en/`，NoteBox 参考项目在 `demo-en/`。升级时复制整个 `scripts/wiki/` 会带上 `en/`；已按接入指南把 `scripts/wiki/**` 写进 `exclude` 的项目不用改配置。用英文写文档的项目从 `templates/en/` 复制模板，Agent 按 `scripts/wiki/en/skills/` 下的路径读取技能。需求、决策记录和本记录没有英文版。
 
