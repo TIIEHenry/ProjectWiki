@@ -69,9 +69,9 @@
   },
   "remind": {
     "watch": [
-      {"name": "wiki", "code": ["scripts/wiki/wiki.py", "scripts/wiki/hooks/*", "tests/*"], "docs": ["scripts/wiki/*.md", "docs/design/automation.md"]},
-      {"name": "templates", "code": ["templates/*"], "docs": ["templates/README.md", "docs/guides/adoption.md"]},
-      {"name": "system-rules", "code": ["docs/design/*", "docs/principles/*", "docs/requirements/*", "docs/guides/*", "docs/standards/*"], "docs": ["templates/*", "demo/*", "AGENTS.md"]},
+      {"name": "wiki", "code": ["scripts/wiki/wiki.py", "scripts/wiki/hooks/*", "tests/*"], "docs": ["scripts/wiki/README.md", "scripts/wiki/formats.md", "scripts/wiki/reference.md", "scripts/wiki/workflow.md", "scripts/wiki/skills/*", "docs/design/automation.md"]},
+      {"name": "templates", "code": ["templates/decision.md", "templates/inbox-item.md", "templates/plan.md", "templates/requirements.md", "templates/module/*", "templates/review/*", "templates/project/*"], "docs": ["templates/README.md", "docs/guides/adoption.md"]},
+      {"name": "system-rules", "code": ["docs/design/*", "docs/principles/*", "docs/requirements/*", "docs/guides/*", "docs/standards/*"], "docs": ["templates/README.md", "templates/decision.md", "templates/inbox-item.md", "templates/plan.md", "templates/requirements.md", "templates/module/*", "templates/review/*", "templates/project/*", "demo/*", "AGENTS.md"]},
       {"name": "en-docs", "code": ["docs/INDEX.md", "docs/principles/document-system.md", "docs/design/*", "docs/guides/*", "docs/standards/writing.md"], "docs": ["docs/en/*"]},
       {"name": "en-tool", "code": ["scripts/wiki/README.md", "scripts/wiki/formats.md", "scripts/wiki/reference.md", "scripts/wiki/workflow.md", "scripts/wiki/skills/*"], "docs": ["scripts/wiki/en/*"]},
       {"name": "en-templates", "code": ["templates/README.md", "templates/decision.md", "templates/inbox-item.md", "templates/plan.md", "templates/requirements.md", "templates/module/*", "templates/review/*", "templates/project/*"], "docs": ["templates/en/*"]},
